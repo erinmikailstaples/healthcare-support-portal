@@ -1,413 +1,251 @@
-# 🚀 Galileo Observability Integration
+# 📊 Galileo Observability Integration
 
-This document describes the comprehensive observability integration using **Galileo Python SDK** in your RAG application. The integration provides detailed monitoring, tracing, and analytics for all RAG operations.
+This document explains the **standard Galileo observability integration** for the RAG service, which uses only Galileo for comprehensive monitoring and analytics.
 
-## 🎯 **What is Galileo?**
+## 🎯 Overview
 
-**Galileo** is a comprehensive observability platform that provides:
+The observability system uses:
+- **Galileo SDK** for event logging and monitoring
+- **Structured logging** with structlog
 
-- **📊 Real-time Monitoring**: Track system performance and health
-- **🔍 Distributed Tracing**: Trace requests across microservices
-- **📈 Metrics & Analytics**: Detailed performance metrics
-- **🚨 Alerting**: Proactive issue detection and notification
-- **📋 Dashboards**: Visual insights into system behavior
+## 🔧 Configuration
 
-## 🏗️ **Observability Architecture**
-
-Your RAG service now includes a complete observability stack:
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   RAG Service   │───▶│   Galileo 2.0   │───▶│   Dashboards    │
-│                 │    │   Platform      │    │   & Analytics   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ OpenTelemetry   │    │   Prometheus    │    │  Structured     │
-│   Tracing       │    │    Metrics      │    │   Logging       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-## 🔧 **Configuration**
-
-### **Environment Variables**
-
-Add these to your `packages/rag/.env` file:
+### Environment Variables
 
 ```env
-# Galileo 2.0 Configuration
+# Galileo Observability
 GALILEO_ENABLED=true
 GALILEO_API_KEY=your-galileo-api-key-here
 GALILEO_PROJECT_NAME=healthcare-rag
 GALILEO_ENVIRONMENT=development
-
-# OpenTelemetry Configuration
-OTEL_ENABLED=true
-OTEL_ENDPOINT=http://localhost:4317
-OTEL_SERVICE_NAME=rag-service
-OTEL_SERVICE_VERSION=0.1.0
-
-# Prometheus Configuration
-PROMETHEUS_ENABLED=true
-PROMETHEUS_PORT=9090
 
 # Logging Configuration
 LOG_LEVEL=INFO
 LOG_FORMAT=json
 ```
 
-### **Getting Your Galileo API Key**
+### Galileo Setup
 
-1. **Sign up for Galileo**: Visit [Galileo Platform](https://galileo.com)
-2. **Create a project**: Set up your healthcare-rag project
-3. **Get API key**: Copy your API key from the dashboard
-4. **Configure environment**: Add the API key to your `.env` file
+1. **Get your Galileo API key** from the Galileo platform
+2. **Set the project name** to match your Galileo project
+3. **Configure environment** (development/staging/production)
+4. **Enable observability** by setting `GALILEO_ENABLED=true`
 
-## 📊 **Metrics & Monitoring**
+## 📊 What Gets Tracked
 
-### **RAG-Specific Metrics**
+### RAG Operations
+- **Query processing** (start, completion, errors)
+- **Embedding generation** (model, chunk count, duration)
+- **Vector search** (results, similarity threshold, duration)
+- **AI response generation** (model, token count, duration)
 
-Your RAG service now tracks these key metrics:
+### Document Operations
+- **Document uploads** (type, department, file size)
+- **Embedding storage** (document ID, chunk count)
 
-#### **Query Performance**
-- `rag_queries_total`: Total number of RAG queries
-- `rag_query_duration_seconds`: Query response time
-- `rag_vector_search_duration_seconds`: Vector search performance
-- `rag_ai_response_duration_seconds`: AI response generation time
+### HTTP Requests
+- **Request completion** (method, path, duration, status)
+- **Request failures** (error details)
 
-#### **Document Operations**
-- `rag_document_uploads_total`: Document upload counts
-- `rag_embeddings_stored_total`: Embedding storage operations
-- `rag_embedding_generation_duration_seconds`: Embedding generation time
+### Event Tracking
+- **All operations logged to Galileo** with rich metadata
+- **User context tracking** when available
+- **Session tracking** for request correlation
 
-#### **System Health**
-- `rag_errors_total`: Error counts by type
-- `rag_active_connections`: Active user connections
+## 🚀 Usage Examples
 
-### **Accessing Metrics**
+### Basic Event Logging
 
-#### **Prometheus Endpoint**
+```python
+from .observability import log_galileo_event
+
+# Log a custom event
+log_galileo_event(
+    event_type="custom_operation",
+    event_data={
+        "operation": "data_processing",
+        "records_processed": 1000,
+        "duration": 5.2
+    },
+    user_id="user123",
+    session_id="session456"
+)
+```
+
+### Context Managers for Operations
+
+```python
+from .observability import rag_query_context
+
+async with rag_query_context(
+    query_type="document_search",
+    user_role="doctor",
+    department="cardiology"
+) as query_id:
+    # Your RAG operation here
+    results = await search_documents(query)
+    return results
+```
+
+### Document Upload Tracking
+
+```python
+from .observability import log_document_upload
+
+log_document_upload(
+    document_type="guidelines",
+    department="cardiology",
+    file_size=1024000,
+    document_id=123
+)
+```
+
+## 📈 Monitoring Dashboard
+
+### Galileo Events
+
+All events are automatically logged to Galileo with:
+- **Event type** (e.g., `rag_query_completed`)
+- **Event data** (operation details, metrics, timestamps)
+- **User context** (when available)
+- **Session tracking** (when available)
+
+### Event Types
+
+The system logs these event types to Galileo:
+
+```
+# RAG Operations
+rag_query_started
+rag_query_completed
+rag_query_failed
+
+# Embedding Operations
+embedding_generation_started
+embedding_generation_completed
+embedding_generation_failed
+
+# Vector Search Operations
+vector_search_started
+vector_search_completed
+vector_search_failed
+
+# AI Response Operations
+ai_response_generation_started
+ai_response_generation_completed
+ai_response_generation_failed
+
+# Document Operations
+document_uploaded
+embeddings_stored
+
+# HTTP Operations
+http_request_completed
+http_request_failed
+```
+
+## 🔍 Observability Endpoints
+
+### Health Check
 ```bash
-# Get metrics in Prometheus format
-curl http://localhost:8003/metrics
+curl http://localhost:8003/health
 ```
 
-#### **Example Metrics Output**
-```
-# HELP rag_queries_total Total number of RAG queries
-# TYPE rag_queries_total counter
-rag_queries_total{query_type="ask",user_role="doctor",department="cardiology"} 42
-
-# HELP rag_query_duration_seconds RAG query duration in seconds
-# TYPE rag_query_duration_seconds histogram
-rag_query_duration_seconds_bucket{query_type="ask",le="0.1"} 15
-rag_query_duration_seconds_bucket{query_type="ask",le="0.5"} 35
-rag_query_duration_seconds_bucket{query_type="ask",le="1.0"} 42
+### Observability Status
+```bash
+curl http://localhost:8003/observability
 ```
 
-## 🔍 **Distributed Tracing**
+## 🛠️ Development
 
-### **Trace Structure**
+### Adding New Events
 
-Each RAG operation creates a detailed trace:
+1. **Define event type** in your operation
+2. **Use context managers** for automatic tracking
+3. **Log custom events** with `log_galileo_event()`
 
-```
-RAG Query (query_id: abc-123)
-├── Vector Search (search_id: def-456)
-│   ├── Database Query
-│   ├── Embedding Generation
-│   └── Similarity Calculation
-├── AI Response Generation (response_id: ghi-789)
-│   ├── Context Preparation
-│   ├── OpenAI API Call
-│   └── Response Processing
-└── Galileo Event Logging
-```
+### Testing Observability
 
-### **Trace Attributes**
+```python
+# Test Galileo connection
+curl -X GET "http://localhost:8003/observability"
 
-Traces include rich metadata:
-
-- **User Information**: Role, department, user ID
-- **Query Details**: Query type, parameters, filters
-- **Performance Data**: Duration, token counts, result counts
-- **System Context**: Model versions, configuration
-
-### **Viewing Traces**
-
-1. **Galileo Dashboard**: View traces in the Galileo web interface
-2. **Jaeger UI**: If using Jaeger for trace visualization
-3. **OpenTelemetry Collector**: Forward traces to your preferred backend
-
-## 📝 **Structured Logging**
-
-### **Log Format**
-
-All logs are now structured and include:
-
-```json
-{
-  "timestamp": "2024-01-15T10:30:00Z",
-  "level": "INFO",
-  "logger": "rag_service.routers.chat",
-  "message": "RAG query completed",
-  "query_type": "ask",
-  "user_role": "doctor",
-  "department": "cardiology",
-  "query_id": "abc-123",
-  "duration": 1.234,
-  "sources_count": 3,
-  "context_used": true
-}
+# Check if events are being logged
+# Monitor Galileo dashboard for new events
 ```
 
-### **Log Levels**
+## 🚀 Production Deployment
 
-- **DEBUG**: Detailed debugging information
-- **INFO**: General operational information
-- **WARNING**: Potential issues or unusual behavior
-- **ERROR**: Error conditions that need attention
-
-### **Log Configuration**
+### Galileo Configuration
 
 ```env
-# JSON format for production
-LOG_FORMAT=json
-
-# Console format for development
-LOG_FORMAT=console
-
-# Log level
-LOG_LEVEL=INFO
+# Production Galileo settings
+GALILEO_ENABLED=true
+GALILEO_API_KEY=your-production-galileo-api-key
+GALILEO_PROJECT_NAME=healthcare-rag-prod
+GALILEO_ENVIRONMENT=production
 ```
 
-## 🎯 **Event Tracking**
+### Monitoring Setup
 
-### **Galileo Events**
+1. **Configure Galileo alerts** for error rates
+2. **Create dashboards** for key metrics
+3. **Configure log aggregation** for structured logs
+4. **Set up event-based monitoring** for critical operations
 
-The system automatically logs events to Galileo:
+## 🔧 Troubleshooting
 
-#### **Document Operations**
-- `document_created`: New document creation
-- `document_uploaded_with_embeddings`: Document upload with embedding generation
-- `document_deleted`: Document deletion
-- `embeddings_regenerated`: Embedding regeneration
+### Galileo Connection Issues
 
-#### **RAG Operations**
-- `document_search`: Document search queries
-- `ai_question_answered`: AI question responses
-- `ai_response_error`: AI response generation errors
-- `ai_response_feedback`: User feedback on responses
-
-#### **System Events**
-- `embedding_generation_started`: Embedding generation begins
-- `vector_search_completed`: Vector search operations
-- `rag_query_started`: RAG query initiation
-
-### **Event Data Structure**
-
-Each event includes:
-
-```json
-{
-  "event_type": "ai_question_answered",
-  "event_data": {
-    "question": "What are the treatment guidelines?",
-    "context_used": true,
-    "sources_count": 3,
-    "response_length": 245,
-    "input_tokens": 12,
-    "output_tokens": 89,
-    "model": "gpt-4o-mini",
-    "response_id": "ghi-789"
-  },
-  "user_id": "123",
-  "session_id": "abc-123",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-## 🚀 **Performance Monitoring**
-
-### **Key Performance Indicators (KPIs)**
-
-#### **Response Time**
-- **Target**: < 2 seconds for RAG queries
-- **Monitoring**: `rag_query_duration_seconds` histogram
-- **Alerting**: Set up alerts for queries > 5 seconds
-
-#### **Accuracy**
-- **Target**: High relevance in search results
-- **Monitoring**: `rag_vector_search_duration_seconds` and result counts
-- **Feedback**: User feedback tracking via `ai_response_feedback` events
-
-#### **System Health**
-- **Target**: 99.9% uptime
-- **Monitoring**: Error rates via `rag_errors_total`
-- **Alerting**: Error rate spikes
-
-### **Dashboard Setup**
-
-Create Galileo dashboards for:
-
-1. **RAG Performance Dashboard**
-   - Query response times
-   - Success rates
-   - User activity by role
-
-2. **Document Operations Dashboard**
-   - Upload rates
-   - Embedding generation performance
-   - Storage metrics
-
-3. **System Health Dashboard**
-   - Error rates
-   - Active connections
-   - Resource utilization
-
-## 🔧 **Troubleshooting**
-
-### **Common Issues**
-
-#### **Galileo Connection Issues**
 ```bash
-# Check Galileo API key
+# Check Galileo configuration
+curl -X GET "http://localhost:8003/observability"
+
+# Verify API key is set
 echo $GALILEO_API_KEY
 
-# Test Galileo connection
-curl -H "Authorization: Bearer $GALILEO_API_KEY" \
-  https://api.galileo.com/health
+# Check Galileo SDK logs
+tail -f logs/rag.log | grep -i galileo
 ```
 
-#### **OpenTelemetry Issues**
-```bash
-# Check OTLP endpoint
-curl http://localhost:4317/health
-
-# Verify trace export
-# Check logs for "OpenTelemetry tracer initialized successfully"
-```
-
-#### **Prometheus Issues**
-```bash
-# Check metrics endpoint
-curl http://localhost:8003/metrics
-
-# Verify Prometheus can scrape
-curl http://localhost:9090/api/v1/targets
-```
-
-### **Debug Mode**
-
-Enable debug logging for troubleshooting:
-
-```env
-DEBUG=true
-LOG_LEVEL=DEBUG
-```
-
-### **Health Check Endpoints**
+### Logging Issues
 
 ```bash
-# Service health
-curl http://localhost:8003/health
+# Check log format
+grep "LOG_FORMAT" packages/rag/.env
 
-# Observability status
-curl http://localhost:8003/observability
-
-# Prometheus metrics
-curl http://localhost:8003/metrics
+# View structured logs
+tail -f logs/rag.log | jq .
 ```
 
-## 📈 **Analytics & Insights**
+## 📚 Key Benefits
 
-### **Query Analytics**
+### Simplified Architecture
+- **No OTEL complexity** - direct Galileo integration
+- **No Prometheus setup** - Galileo handles all metrics
+- **Reduced dependencies** - fewer packages to manage
+- **Easier deployment** - single observability platform
 
-Track query patterns and performance:
+### Rich Observability
+- **Comprehensive event tracking** - all RAG operations
+- **Structured logging** - machine-readable logs
+- **User context** - track user behavior
+- **Session correlation** - link related operations
 
-- **Most common queries**: Identify popular questions
-- **Query performance**: Find slow queries
-- **User behavior**: Understand usage patterns by role
-- **Error analysis**: Identify common failure points
+### Production Ready
+- **Error tracking** - automatic error logging
+- **Performance monitoring** - duration tracking
+- **Scalable** - handles high-volume operations
+- **Secure** - API key-based authentication
 
-### **Document Analytics**
+## 🎯 Next Steps
 
-Monitor document operations:
-
-- **Upload patterns**: Track document types and sizes
-- **Embedding performance**: Monitor generation times
-- **Storage efficiency**: Track embedding storage usage
-- **Access patterns**: Understand document usage
-
-### **AI Performance**
-
-Monitor AI model performance:
-
-- **Response quality**: Track user feedback
-- **Token usage**: Monitor OpenAI API costs
-- **Model performance**: Compare different models
-- **Context effectiveness**: Measure context usage
-
-## 🚀 **Production Deployment**
-
-### **Production Configuration**
-
-```env
-# Production settings
-GALILEO_ENVIRONMENT=production
-LOG_LEVEL=WARNING
-LOG_FORMAT=json
-DEBUG=false
-
-# Use production Galileo endpoint
-GALILEO_API_KEY=your-production-galileo-api-key
-
-# Use production OpenTelemetry collector
-OTEL_ENDPOINT=https://your-otel-collector:4317
-```
-
-### **Monitoring Setup**
-
-1. **Set up alerts** for critical metrics
-2. **Configure dashboards** for key KPIs
-3. **Set up log aggregation** for centralized logging
-4. **Configure trace sampling** for production load
-
-### **Performance Optimization**
-
-1. **Trace sampling**: Sample traces in production
-2. **Metric aggregation**: Aggregate metrics for efficiency
-3. **Log rotation**: Implement log rotation policies
-4. **Resource monitoring**: Monitor system resources
-
-## 🎯 **Benefits**
-
-### **For Developers**
-- **Debugging**: Detailed traces for troubleshooting
-- **Performance**: Identify bottlenecks and optimize
-- **Monitoring**: Real-time system health visibility
-
-### **For Operations**
-- **Alerting**: Proactive issue detection
-- **Capacity Planning**: Understand usage patterns
-- **Incident Response**: Quick problem identification
-
-### **For Business**
-- **User Experience**: Monitor and improve response times
-- **Cost Optimization**: Track API usage and costs
-- **Quality Assurance**: Monitor AI response quality
-
-## 📚 **Next Steps**
-
-1. **Set up Galileo account** and get your API key
-2. **Configure environment variables** for your deployment
-3. **Create dashboards** for key metrics
-4. **Set up alerts** for critical thresholds
-5. **Monitor and optimize** based on insights
+1. **Configure Galileo API key** in your environment
+2. **Set up monitoring dashboards** in Galileo
+3. **Configure alerts** for error conditions
+4. **Monitor performance** and optimize based on events
+5. **Set up custom event tracking** for business metrics
 
 ---
 
-**Your RAG application now has enterprise-grade observability with Galileo** 🚀✨
-
-**Need help?** Check the troubleshooting section or refer to the Galileo documentation for advanced features.
+**Note**: This observability system provides comprehensive monitoring using only Galileo, making it easier to deploy and maintain while still providing rich insights into your RAG system's performance and usage.

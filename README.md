@@ -499,6 +499,17 @@ CHUNK_OVERLAP=200
 MAX_CONTEXT_LENGTH=8000
 SIMILARITY_THRESHOLD=0.7
 MAX_RESULTS=5
+
+# Galileo Observability (Optional)
+GALILEO_ENABLED=true
+GALILEO_API_KEY=your-galileo-api-key-here
+GALILEO_PROJECT_NAME=healthcare-rag
+GALILEO_ENVIRONMENT=development
+
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FORMAT=json
 ```
 
 #### 🌐 Frontend (frontend/.env)
@@ -673,6 +684,17 @@ CHUNK_OVERLAP=200
 MAX_CONTEXT_LENGTH=8000
 SIMILARITY_THRESHOLD=0.7
 MAX_RESULTS=5
+
+# Galileo Observability
+GALILEO_ENABLED=true
+GALILEO_API_KEY=your-production-galileo-api-key
+GALILEO_PROJECT_NAME=healthcare-rag-prod
+GALILEO_ENVIRONMENT=production
+
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FORMAT=json
 ```
 
 **🌐 Frontend (frontend/.env)**

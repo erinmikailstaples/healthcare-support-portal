@@ -48,22 +48,6 @@ class Settings(BaseSettings):
         "GALILEO_ENVIRONMENT", "development"
     )
     
-    # OpenTelemetry Configuration
-    otel_enabled: bool = os.getenv(
-        "OTEL_ENABLED", "true"
-    ).lower() == "true"
-    otel_endpoint: str = os.getenv("OTEL_ENDPOINT", "http://localhost:4317")
-    otel_service_name: str = os.getenv("OTEL_SERVICE_NAME", "rag-service")
-    otel_service_version: str = os.getenv(
-        "OTEL_SERVICE_VERSION", "0.1.0"
-    )
-    
-    # Prometheus Configuration
-    prometheus_enabled: bool = os.getenv(
-        "PROMETHEUS_ENABLED", "true"
-    ).lower() == "true"
-    prometheus_port: int = int(os.getenv("PROMETHEUS_PORT", "9090"))
-    
     # Logging Configuration
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     log_format: str = os.getenv("LOG_FORMAT", "json")  # json or console

@@ -15,10 +15,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .observability import (
     initialize_observability,
-    instrument_fastapi,
-    instrument_sqlalchemy,
-    instrument_openai,
-    prometheus_metrics_endpoint,
     ObservabilityMiddleware,
     logger
 )
@@ -55,16 +51,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Instrument FastAPI with OpenTelemetry
-instrument_fastapi(app)
-
 # Include routers
-app.include_router(documents.router, prefix="/api/v1/documents", tags=["Documents"])
+app.include_router(
+    documents.router, 
+    prefix="/api/v1/documents", 
+    tags=["Documents"]
+)
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
-
-# Add Prometheus metrics endpoint
-if settings.prometheus_enabled:
-    app.add_route("/metrics", prometheus_metrics_endpoint, methods=["GET"])
 
 
 @app.on_event("startup")
@@ -74,19 +67,10 @@ async def startup_event():
         # Verify database migrations are current
         require_migrations_current()
         
-        # Instrument SQLAlchemy
-        from common.db import engine
-        instrument_sqlalchemy(engine)
-        
-        # Instrument OpenAI
-        instrument_openai()
-        
         logger.info(
             f"🚀 {settings.app_name} started successfully",
             port=settings.port,
-            galileo_enabled=settings.galileo_enabled,
-            otel_enabled=settings.otel_enabled,
-            prometheus_enabled=settings.prometheus_enabled
+            galileo_enabled=settings.galileo_enabled
         )
         
     except Exception as e:
@@ -101,9 +85,7 @@ async def root():
         "status": "healthy", 
         "version": "0.1.0",
         "observability": {
-            "galileo_enabled": settings.galileo_enabled,
-            "otel_enabled": settings.otel_enabled,
-            "prometheus_enabled": settings.prometheus_enabled
+            "galileo_enabled": settings.galileo_enabled
         }
     }
 
@@ -121,15 +103,6 @@ async def observability_status():
             "enabled": settings.galileo_enabled,
             "project": settings.galileo_project_name,
             "environment": settings.galileo_environment
-        },
-        "opentelemetry": {
-            "enabled": settings.otel_enabled,
-            "service_name": settings.otel_service_name,
-            "endpoint": settings.otel_endpoint
-        },
-        "prometheus": {
-            "enabled": settings.prometheus_enabled,
-            "port": settings.prometheus_port
         },
         "logging": {
             "level": settings.log_level,
