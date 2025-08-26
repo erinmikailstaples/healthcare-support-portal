@@ -20,8 +20,7 @@ dependencies = [
     "numpy>=1.24.0",
     "python-multipart>=0.0.6",
     "common",
-    # Galileo 2.0 Observability
-    "galileo-sdk>=2.0.0",
+    "galileo-sdk>=1.16.1",
     "structlog>=23.0.0",
     "rich>=13.0.0",
 ]
