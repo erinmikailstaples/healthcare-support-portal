@@ -1,29 +1,35 @@
-# Healthcare Support Portal
+# 🏥 Healthcare Support Portal
 
 A **Secure, Efficient, and Reliable Agentic RAG Application** built with Python microservices, featuring role-based access control, vector search, and AI-powered document assistance for healthcare professionals.
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Quick Start](#quick-start)
-- [Installation](#installation)
-- [Services](#services)
-- [API Documentation](#api-documentation)
-- [Usage Examples](#usage-examples)
-- [Development](#development)
-- [Deployment](#deployment)
-- [Security](#security)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+- [🎯 Overview](#-overview)
+- [🚀 Quick Start](#-quick-start)
+- [🧠 RAG System Guide](#-rag-system-guide)
+- [🏗️ Architecture](#️-architecture)
+- [🔧 Services](#-services)
+- [📚 API Documentation](#-api-documentation)
+- [🔐 Security](#-security)
+- [📊 Usage Examples](#-usage-examples)
+- [🛠️ Development](#️-development)
+- [🚀 Deployment](#-deployment)
+- [🔧 Troubleshooting](#-troubleshooting)
+- [📖 Contributing](#-contributing)
+- [📄 License](#-license)
 
-## 🏥 Overview
+## 🎯 Overview
 
-The Healthcare Support Portal is a demonstration of building secure, efficient, and reliable agentic RAG (Retrieval-Augmented Generation) applications using modern Python technologies. This system provides healthcare professionals with intelligent document management and AI-powered assistance while maintaining strict role-based access controls.
+The Healthcare Support Portal is a **production-ready RAG (Retrieval-Augmented Generation) application** that revolutionizes how healthcare professionals access and use knowledge. It combines the power of AI with your organization's documents to provide intelligent, contextual assistance.
 
-### Key Technologies
+### 🧠 What is RAG and Why It's Revolutionary
+
+**RAG (Retrieval-Augmented Generation)** solves the biggest problems with traditional AI:
+
+- **❌ Traditional AI**: Knowledge cutoff, hallucinations, no sources
+- **✅ RAG**: Always current, factual responses, source transparency
+
+### 🏥 Key Technologies
 
 - **🔐 Security:** [Oso](https://osohq.com) for fine-grained authorization
 - **🧠 AI/RAG:** [OpenAI](https://openai.com) for embeddings and chat completions
@@ -32,31 +38,161 @@ The Healthcare Support Portal is a demonstration of building secure, efficient, 
 - **📦 Package Management:** [uv](https://github.com/astral-sh/uv) for fast Python package management
 - **🏗️ Architecture:** Python microservices in a monorepo with uv workspaces
 
-## ✨ Features
+## 🚀 Quick Start
 
-### 🔒 Security & Authorization
-- **JWT-based authentication** with secure token management
-- **Role-based access control** (Doctor, Nurse, Admin) using Oso policies
-- **Fine-grained permissions** at the database level with SQLAlchemy integration
-- **Department-based access controls** for multi-tenant healthcare environments
+### Prerequisites
 
-### 🧠 AI-Powered RAG
-- **Document embeddings** using OpenAI's latest embedding models
-- **Semantic search** with pgvector for fast similarity queries
-- **Context-aware responses** that adapt to user roles and permissions
-- **Smart document chunking** with token-aware text processing
+- **Python 3.11+**
+- **Node.js 18+** (for frontend)
+- **PostgreSQL 12+** with pgvector extension
+- **Docker & Docker Compose** (for database)
+- **OpenAI API Key** (for RAG functionality)
+- **uv package manager**
 
-### 🏥 Healthcare-Specific Features
-- **Patient management** with doctor assignments and department organization
-- **Medical document storage** with sensitivity levels and access controls
-- **Audit trails** for all document access and modifications
-- **HIPAA-compliant** design patterns (when properly configured)
+### ⚡ Get Running in 5 Minutes
 
-### 🚀 Performance & Reliability
-- **Microservices architecture** for scalability and maintainability
-- **Database connection pooling** and query optimization
-- **Asynchronous processing** for AI operations
-- **Comprehensive error handling** and logging
+#### 1. Clone and Setup
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd healthcare-support-portal
+
+# Run initial setup
+./setup.sh
+```
+
+#### 2. Configure Environment Variables
+
+```bash
+# Copy example environment files
+cp packages/auth/.env.example packages/auth/.env
+cp packages/patient/.env.example packages/patient/.env
+cp packages/rag/.env.example packages/rag/.env
+cp frontend/.env.example frontend/.env
+
+# Set your OpenAI API key (required for RAG functionality)
+export OPENAI_API_KEY="your-openai-api-key-here"
+echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> packages/rag/.env
+
+# Generate secure secret keys for production
+SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
+echo "SECRET_KEY=$SECRET_KEY" >> packages/auth/.env
+echo "SECRET_KEY=$SECRET_KEY" >> packages/patient/.env
+echo "SECRET_KEY=$SECRET_KEY" >> packages/rag/.env
+```
+
+#### 3. Start All Services
+
+```bash
+# Start everything at once
+./run_all.sh
+
+# This starts:
+# - 🔐 Auth Service (Port 8001)
+# - 🏥 Patient Service (Port 8002) 
+# - 🤖 RAG Service (Port 8003)
+# - 🌐 Frontend (Port 3000)
+# - 🗄️ PostgreSQL (Port 5432)
+```
+
+#### 4. Access Your Application
+
+- **🌐 Web Interface:** http://localhost:3000
+- **🤖 RAG API Docs:** http://localhost:8003/docs
+- **🔐 Auth API Docs:** http://localhost:8001/docs
+- **🏥 Patient API Docs:** http://localhost:8002/docs
+
+#### 5. Test Your RAG System
+
+```bash
+# Upload a document
+curl -X POST "http://localhost:8003/api/v1/documents/upload" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "file=@your_document.pdf" \
+  -F "title=Medical Guidelines" \
+  -F "document_type=guidelines"
+
+# Ask a question
+curl -X POST "http://localhost:8003/api/v1/chat/ask" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What are the treatment guidelines?"}'
+```
+
+## 🧠 RAG System Guide
+
+### 🎯 What Your RAG System Can Do
+
+Your RAG application provides **intelligent document management and AI-powered assistance**:
+
+#### 🔍 **Intelligent Document Search**
+- **Semantic search**: Find documents even without exact keywords
+- **Department filtering**: Search within specific departments
+- **Document type filtering**: Filter by guidelines, research, procedures
+- **Similarity scoring**: Configurable relevance thresholds
+
+#### 🤖 **AI-Powered Q&A**
+- **Context-aware responses**: Uses relevant documents to inform answers
+- **Role-based responses**: Tailored for doctors, nurses, administrators
+- **Source attribution**: Shows which documents were used
+- **Fallback handling**: Graceful responses when no context is found
+
+#### 🔐 **Enterprise Security**
+- **JWT authentication**: Secure user sessions
+- **Oso authorization**: Fine-grained access control
+- **Department isolation**: Users only see their department's documents
+- **Audit trails**: Track all document access and modifications
+
+### 🏗️ How RAG Works
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   User Query    │───▶│  Vector Search  │───▶│  AI Generation  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                              │                        │
+                              ▼                        ▼
+                       ┌─────────────────┐    ┌─────────────────┐
+                       │  Document Store │    │  Context-Aware  │
+                       │  (pgvector)     │    │   Response      │
+                       └─────────────────┘    └─────────────────┘
+```
+
+#### **Step 1: Document Processing**
+```
+Upload Document → Text Extraction → Chunking → Embedding Generation → Vector Storage
+```
+
+#### **Step 2: Query Processing**
+```
+User Question → Query Embedding → Similarity Search → Context Retrieval
+```
+
+#### **Step 3: Response Generation**
+```
+Retrieved Context + User Role + Question → OpenAI GPT → Contextual Response
+```
+
+### 🎯 Real-World Use Cases
+
+#### **🏥 For Doctors**
+- **Query**: "What are the contraindications for prescribing metformin?"
+- **RAG Response**: Uses latest medical guidelines and research papers to provide evidence-based information.
+
+#### **👩‍⚕️ For Nurses**
+- **Query**: "How do I properly administer insulin to a patient?"
+- **RAG Response**: Uses nursing procedures and safety guidelines for step-by-step instructions.
+
+#### **👨‍💼 For Administrators**
+- **Query**: "What are the HIPAA compliance requirements for patient data?"
+- **RAG Response**: Uses policy documents and compliance guidelines.
+
+### 📚 RAG Documentation
+
+- **🚀 [Quick Start Guide](packages/rag/QUICK_START.md)**: Get up and running in 5 minutes
+- **📖 [Complete User Guide](packages/rag/RAG_GUIDE.md)**: Comprehensive usage instructions
+- **🚀 [Enhancement Ideas](packages/rag/ENHANCEMENTS.md)**: Advanced features and improvements
+- **📖 [RAG Summary](packages/rag/SUMMARY.md)**: Overview of capabilities
 
 ## 🏗️ Architecture
 
@@ -105,114 +241,7 @@ Healthcare Support Portal
 └── authorization.polar              # Oso authorization policies
 ```
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Python 3.11+**
-- **Node.js 18+** (for frontend)
-- **PostgreSQL 12+** with pgvector extension
-- **Docker & Docker Compose** (for database)
-- **OpenAI API Key** (for RAG functionality)
-- **uv package manager**
-
-### 1. Clone and Setup
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd healthcare-support-portal
-
-# Run initial setup
-./setup.sh
-
-# This will:
-# - Create necessary directories
-# - Copy .env.example files to .env
-# - Generate secure SECRET_KEY
-# - Make scripts executable
-```
-
-### 2. Configure Environment
-
-```bash
-# Edit the RAG service .env to add your OpenAI API key
-nano packages/rag/.env
-# Set: OPENAI_API_KEY=sk-your-actual-api-key-here
-```
-
-### 3. Start Infrastructure Services
-
-```bash
-# Start PostgreSQL with pgvector and Oso Dev Server
-docker-compose up -d
-
-# This starts:
-# - PostgreSQL database with pgvector (port 5432)
-# - Oso Dev Server with policy hot-reloading (port 8080)
-# - Migration service (runs automatically with ./run_all.sh)
-
-# Wait for services to be ready (about 15 seconds)
-```
-
-### 4. Run Database Migrations
-
-```bash
-# Run database migrations to create schema
-docker-compose run migrate
-
-# This will:
-# - Enable the pgvector extension in PostgreSQL  
-# - Create all required database tables using Alembic
-# - Apply any pending schema migrations
-# - Ensure database is up to date before services start
-```
-
-### 5. Install Dependencies
-
-```bash
-# Install Python dependencies (all packages at once)
-uv sync
-
-# Install frontend dependencies
-cd frontend && npm install && cd ..
-```
-
-### 6. Start All Services
-
-```bash
-# Start all services at once
-./run_all.sh
-
-# Or start individually:
-cd packages/auth && ./run.sh &
-cd packages/patient && ./run.sh &
-cd packages/rag && ./run.sh &
-cd frontend && ./run.sh &
-```
-
-### 7. Seed Demo Data (Optional)
-
-```bash
-# Create demo users, patients, and medical documents
-uv run python -m common.seed_data
-
-# This creates demo login credentials:
-# Doctor:  dr_smith / secure_password
-# Nurse:   nurse_johnson / secure_password  
-# Admin:   admin_wilson / secure_password
-```
-
-### 8. Verify Installation
-
-Visit the application and API documentation:
-- **🌐 Frontend Application:** http://localhost:3000
-- **🔐 Auth Service API:** http://localhost:8001/docs
-- **🏥 Patient Service API:** http://localhost:8002/docs
-- **🤖 RAG Service API:** http://localhost:8003/docs
-- **⚖️ Oso Dev Server:** http://localhost:8080 (policy management)
-
-## 🎯 Services
+## 🔧 Services
 
 ### 🔐 Auth Service (Port 8001)
 **Purpose:** User authentication, authorization, and management
@@ -292,7 +321,22 @@ Each service provides interactive API documentation:
 | Patient Service | http://localhost:8002/docs | http://localhost:8002/redoc |
 | RAG Service | http://localhost:8003/docs | http://localhost:8003/redoc |
 
-## 🔧 Usage Examples
+## 🔐 Security
+
+### 🔒 Authentication & Authorization
+- **JWT-based authentication** with secure token management
+- **Role-based access control** (Doctor, Nurse, Admin) using Oso policies
+- **Fine-grained permissions** at the database level with SQLAlchemy integration
+- **Department-based access controls** for multi-tenant healthcare environments
+
+### 🛡️ Security Features
+- **API Key Security:** OpenAI keys stored in environment variables
+- **Content Filtering:** Sensitive document access controls
+- **Audit Trail:** Document creation and access logging
+- **Input Validation:** Sanitization of user inputs
+- **Rate Limiting:** Protection against API abuse
+
+## 📊 Usage Examples
 
 ### 1. Register and Authenticate
 
@@ -301,8 +345,7 @@ Each service provides interactive API documentation:
 curl -X POST "http://localhost:8001/api/v1/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "dr_smith",
-    "email": "smith@hospital.com",
+    "email": "doctor@hospital.com",
     "password": "secure_password",
     "role": "doctor",
     "department": "cardiology"
@@ -310,256 +353,400 @@ curl -X POST "http://localhost:8001/api/v1/auth/register" \
 
 # Login to get JWT token
 curl -X POST "http://localhost:8001/api/v1/auth/login" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=dr_smith&password=secure_password"
-
-# Response: {"access_token": "eyJ...", "token_type": "bearer"}
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "doctor@hospital.com",
+    "password": "secure_password"
+  }'
 ```
 
-### 2. Manage Patients
+### 2. Upload Medical Documents
 
 ```bash
-# Create a new patient (use JWT token from login)
+# Upload a medical guideline document
+curl -X POST "http://localhost:8003/api/v1/documents/upload" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "file=@diabetes_guidelines.pdf" \
+  -F "title=Diabetes Treatment Guidelines 2024" \
+  -F "document_type=guidelines" \
+  -F "department=endocrinology"
+```
+
+### 3. Search Documents
+
+```bash
+# Search for relevant documents
+curl -X POST "http://localhost:8003/api/v1/chat/search" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "metformin contraindications",
+    "document_types": ["guidelines"],
+    "department": "endocrinology"
+  }'
+```
+
+### 4. Ask AI Questions
+
+```bash
+# Ask an AI-powered question
+curl -X POST "http://localhost:8003/api/v1/chat/ask" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "What are the latest treatment guidelines for type 2 diabetes?",
+    "context_department": "endocrinology"
+  }'
+```
+
+### 5. Manage Patients
+
+```bash
+# Create a new patient
 curl -X POST "http://localhost:8002/api/v1/patients/" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "John Doe",
-    "medical_record_number": "MRN-2024-001",
+    "date_of_birth": "1980-01-15",
     "department": "cardiology",
     "assigned_doctor_id": 1
   }'
-
-# List patients (filtered by authorization)
-curl -X GET "http://localhost:8002/api/v1/patients/" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-### 3. AI-Powered Document Assistance
-
-```bash
-# Upload a medical document
-curl -X POST "http://localhost:8003/api/v1/documents/" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Diabetes Management Protocol",
-    "content": "Type 2 diabetes management includes monitoring blood glucose levels, dietary modifications, regular exercise, and medication adherence...",
-    "document_type": "protocol",
-    "department": "endocrinology",
-    "is_sensitive": false
-  }'
-
-# Ask an AI question with context
-curl -X POST "http://localhost:8003/api/v1/chat/ask" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "What are the best practices for diabetes management?",
-    "context_department": "endocrinology",
-    "max_results": 5
-  }'
-
-# Search documents semantically
-curl -X POST "http://localhost:8003/api/v1/chat/search" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "diabetes treatment guidelines",
-    "document_types": ["protocol", "guideline"],
-    "limit": 10
-  }'
-```
-
-## 💻 Development
+## 🛠️ Development
 
 ### Project Structure
 
 ```
 healthcare-support-portal/
-├── packages/                   # Python workspace packages
-│   ├── common/                 # Shared package
-│   │   ├── src/common/
-│   │   │   ├── models.py              # SQLAlchemy models
-│   │   │   ├── db.py                  # Database utilities
-│   │   │   ├── auth.py                # Authentication utilities
-│   │   │   ├── migration_check.py     # Migration verification utilities
-│   │   │   └── schemas.py             # Pydantic schemas
-│   │   ├── alembic/                   # Database migration files
-│   │   │   ├── versions/              # Migration versions
-│   │   │   └── env.py                 # Alembic environment config
-│   │   ├── alembic.ini                # Alembic configuration
-│   │   └── pyproject.toml
-│   ├── auth/                   # Authentication service
-│   ├── patient/                # Patient management service
-│   └── rag/                    # RAG and AI service
-├── scripts/                    # Utility scripts
-│   └── migrate.sh              # Database migration script
-├── frontend/                   # React Router 7 web application
-│   ├── app/                    # Application source
-│   ├── package.json
-│   └── vite.config.ts
-├── authorization.polar         # Oso authorization policies
-├── pyproject.toml              # Workspace configuration
-├── uv.lock                     # Single lockfile for Python
-├── docker-compose.yml          # Infrastructure + migration services
-├── Dockerfile.migrate          # Docker image for migrations
-├── run_all.sh                  # Start all services
-├── stop_all.sh                 # Stop all services
-└── setup.sh                    # Initial project setup
+├── 📦 packages/                  # Python microservices
+│   ├── 🔐 auth/                 # Authentication service
+│   ├── 🏥 patient/              # Patient management service
+│   ├── 🤖 rag/                  # RAG (AI) service
+│   └── 📚 common/               # Shared utilities
+├── 🌐 frontend/                 # React web application
+├── 🗄️ data/                    # Database data
+├── 📝 logs/                     # Service logs
+├── 🔧 scripts/                  # Utility scripts
+└── 📄 Configuration files
 ```
 
-### Development Workflow
+### Development Commands
 
 ```bash
-# Start development environment (first time setup)
-docker-compose up -d                    # Start infrastructure (db + oso)
-docker-compose run migrate               # Run database migrations
-./run_all.sh                           # Start all services
+# Install dependencies
+uv sync
 
-# Daily development
-./run_all.sh                           # Start services (includes migration check)
+# Start development services
+./run_all.sh
 
-# Make changes to code (auto-reload enabled)
-# Services will verify migrations are current on startup
+# Run database migrations
+docker-compose run migrate
 
-# Create new database migration (when models change)
-cd packages/common && uv run alembic revision --autogenerate -m "description"
-docker-compose run migrate               # Apply new migration
+# Seed demo data
+uv run python -m common.seed_data
 
 # Stop all services
 ./stop_all.sh
-
-# Or stop individual services
-pkill -f "auth_service"
 ```
 
-### Adding New Features
+### Environment Configuration
 
-1. **Models:** Add to `packages/common/src/common/models.py`
-2. **Policies:** Update `authorization.polar` (policies hot-reload via Oso Dev Server)
-3. **APIs:** Add endpoints to appropriate service routers
-4. **Frontend:** Add React components in `frontend/app/`
-5. **Tests:** Add tests in service directories (when implemented)
+Each service has its own `.env` file for configuration. Here's how to set up all environment variables:
 
-### Database Migrations
+#### 🔐 Auth Service (packages/auth/.env)
 
-The project uses **Alembic** for database schema management with production-grade migration workflows:
+```env
+# Auth Service Environment Variables
+DEBUG=true
+SECRET_KEY=change-me-in-production
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/healthcare
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+OSO_URL=http://localhost:8080
+OSO_AUTH=e_0123456789_12345_osotesttoken01xiIn
+```
+
+#### 🏥 Patient Service (packages/patient/.env)
+
+```env
+# Patient Service Environment Variables
+DEBUG=true
+SECRET_KEY=change-me-in-production
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/healthcare
+OSO_URL=http://localhost:8080
+OSO_AUTH=e_0123456789_12345_osotesttoken01xiIn
+```
+
+#### 🤖 RAG Service (packages/rag/.env)
+
+```env
+# RAG Service Environment Variables
+DEBUG=true
+SECRET_KEY=change-me-in-production
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/healthcare
+OSO_URL=http://localhost:8080
+OSO_AUTH=e_0123456789_12345_osotesttoken01xiIn
+
+# OpenAI Configuration (Required for RAG functionality)
+OPENAI_API_KEY=sk-your-openai-api-key-here
+EMBEDDING_MODEL=text-embedding-3-small
+CHAT_MODEL=gpt-4o-mini
+
+# RAG Configuration (Optional - has defaults)
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+MAX_CONTEXT_LENGTH=8000
+SIMILARITY_THRESHOLD=0.7
+MAX_RESULTS=5
+
+# Galileo Observability (Optional)
+GALILEO_ENABLED=true
+GALILEO_API_KEY=your-galileo-api-key-here
+GALILEO_PROJECT_NAME=healthcare-rag
+GALILEO_ENVIRONMENT=development
+
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+```
+
+#### 🌐 Frontend (frontend/.env)
+
+```env
+# API Configuration
+VITE_API_BASE_URL=http://localhost
+VITE_AUTH_SERVICE_PORT=8001
+VITE_PATIENT_SERVICE_PORT=8002
+VITE_RAG_SERVICE_PORT=8003
+
+# App Configuration
+VITE_APP_NAME="Healthcare Support Portal"
+VITE_APP_VERSION="0.1.0"
+
+# Development
+VITE_DEBUG=true
+```
+
+### 🔧 Environment Variable Setup
+
+#### 1. Create Environment Files
 
 ```bash
-# Run migrations (recommended - uses Docker)
-docker-compose run migrate
-
-# Create new migration (when you change models)
-cd packages/common && uv run alembic revision --autogenerate -m "Add new feature"
-
-# Apply migrations manually (alternative to Docker)
-cd packages/common && uv run alembic upgrade head
-
-# Check current migration status
-cd packages/common && uv run alembic current
-
-# View migration history
-cd packages/common && uv run alembic history
-
-# Rollback last migration (use with caution)
-cd packages/common && uv run alembic downgrade -1
-
-# Connect to database for manual inspection
-docker exec -it healthcare-support-portal-db-1 psql -U postgres -d healthcare
+# Copy example files to create your .env files
+cp packages/auth/.env.example packages/auth/.env
+cp packages/patient/.env.example packages/patient/.env
+cp packages/rag/.env.example packages/rag/.env
+cp frontend/.env.example frontend/.env
 ```
 
-**Migration Verification:**
-- All services automatically verify migrations are current on startup
-- Services will exit if migrations are outdated (prevents race conditions)
-- Use `./run_all.sh` for automated migration checking
+#### 2. Configure Required Variables
+
+**🔑 OpenAI API Key (Required for RAG)**
+```bash
+# Get your OpenAI API key from: https://platform.openai.com/api-keys
+# Then update the RAG service .env file:
+nano packages/rag/.env
+# Set: OPENAI_API_KEY=sk-your-actual-api-key-here
+```
+
+**🔐 Security Keys (Required for Production)**
+```bash
+# Generate secure secret keys for production
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Update all service .env files with unique secret keys:
+nano packages/auth/.env
+nano packages/patient/.env
+nano packages/rag/.env
+# Set: SECRET_KEY=your-generated-secret-key
+```
+
+**🗄️ Database Configuration**
+```env
+# Default development database URL (PostgreSQL with pgvector)
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/healthcare
+
+# For production, use your actual database URL:
+# DATABASE_URL=postgresql+psycopg2://user:password@host:port/database
+```
+
+#### 3. Optional Configuration
+
+**🔍 RAG System Tuning**
+```env
+# Adjust these values based on your needs:
+
+# Embedding Model (OpenAI models)
+EMBEDDING_MODEL=text-embedding-3-small    # Fast, cost-effective
+# EMBEDDING_MODEL=text-embedding-3-large  # Higher accuracy, more expensive
+
+# Chat Model (OpenAI models)
+CHAT_MODEL=gpt-4o-mini    # Fast, cost-effective
+# CHAT_MODEL=gpt-4o       # Higher quality responses
+
+# Document Processing
+CHUNK_SIZE=1000           # Characters per chunk
+CHUNK_OVERLAP=200         # Overlap between chunks
+MAX_CONTEXT_LENGTH=8000   # Max tokens for AI context
+
+# Search Configuration
+SIMILARITY_THRESHOLD=0.7  # Minimum similarity score (0.0-1.0)
+MAX_RESULTS=5             # Maximum search results
+```
+
+**⏱️ Token Expiration**
+```env
+# Auth service token expiration (minutes)
+ACCESS_TOKEN_EXPIRE_MINUTES=30  # Default: 30 minutes
+```
+
+**🔐 Oso Authorization**
+```env
+# Development (local Oso server)
+OSO_URL=http://localhost:8080
+OSO_AUTH=e_0123456789_12345_osotesttoken01xiIn
+
+# Production (Oso Cloud)
+# OSO_URL=https://cloud.osohq.com
+# OSO_AUTH=your-production-oso-api-key
+```
+
+### 🚀 Quick Environment Setup
+
+For quick development setup, you can use these commands:
+
+```bash
+# 1. Copy all example files
+cp packages/auth/.env.example packages/auth/.env
+cp packages/patient/.env.example packages/patient/.env
+cp packages/rag/.env.example packages/rag/.env
+cp frontend/.env.example frontend/.env
+
+# 2. Set your OpenAI API key (required for RAG)
+export OPENAI_API_KEY="your-openai-api-key-here"
+echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> packages/rag/.env
+
+# 3. Generate secure secret keys
+SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
+echo "SECRET_KEY=$SECRET_KEY" >> packages/auth/.env
+echo "SECRET_KEY=$SECRET_KEY" >> packages/patient/.env
+echo "SECRET_KEY=$SECRET_KEY" >> packages/rag/.env
+
+# 4. Start services
+./run_all.sh
+```
 
 ## 🚀 Deployment
 
-### Docker Deployment
+### Production Deployment
 
-The project uses Docker Compose for **infrastructure services only**. Application services run via Python scripts.
+#### 1. **Production Environment Variables**
 
-```bash
-# Start infrastructure services (PostgreSQL + Migration)
-docker-compose up -d db
-docker-compose run --rm migrate  # Run database migrations
+Create production-specific `.env` files with secure values:
 
-# Start application services (separate terminal)
-./run_all.sh  # Starts all Python services + frontend
-
-# For production: Start only required infrastructure
-# (Remove 'oso' service - use Oso Cloud instead)
-docker-compose up -d db  
-docker-compose run --rm migrate
+**🔐 Auth Service (packages/auth/.env)**
+```env
+DEBUG=false
+SECRET_KEY=your-super-secure-64-character-secret-key
+DATABASE_URL=postgresql+psycopg2://user:password@prod-db:5432/healthcare
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+OSO_URL=https://cloud.osohq.com
+OSO_AUTH=your-production-oso-cloud-api-key
 ```
 
-**Note:** Individual services don't have Dockerfiles - they run via uv/Python directly.
+**🏥 Patient Service (packages/patient/.env)**
+```env
+DEBUG=false
+SECRET_KEY=your-super-secure-64-character-secret-key
+DATABASE_URL=postgresql+psycopg2://user:password@prod-db:5432/healthcare
+OSO_URL=https://cloud.osohq.com
+OSO_AUTH=your-production-oso-cloud-api-key
+```
 
-### Production Configuration
+**🤖 RAG Service (packages/rag/.env)**
+```env
+DEBUG=false
+SECRET_KEY=your-super-secure-64-character-secret-key
+DATABASE_URL=postgresql+psycopg2://user:password@prod-db:5432/healthcare
+OSO_URL=https://cloud.osohq.com
+OSO_AUTH=your-production-oso-cloud-api-key
 
-1. **Environment Variables:**
-   ```bash
-   # Application Configuration
-   export DEBUG=false
-   export ENVIRONMENT=production
-   export SECRET_KEY=your-super-secure-key-64-chars-min
-   export DATABASE_URL=postgresql://user:pass@prod-db:5432/healthcare
-   export OPENAI_API_KEY=sk-your-production-openai-key
-   
-   # Oso Cloud Configuration (Production)
-   export OSO_URL=https://cloud.osohq.com
-   export OSO_AUTH=your-production-oso-cloud-api-key
-   
-   # Development uses local Oso Dev Server:
-   # export OSO_URL=http://localhost:8080  
-   # export OSO_AUTH=e_0123456789_12345_osotesttoken01xiIn
-   ```
+# OpenAI Configuration
+OPENAI_API_KEY=sk-your-production-openai-api-key
+EMBEDDING_MODEL=text-embedding-3-small
+CHAT_MODEL=gpt-4o-mini
 
-2. **Database:**
-   - Use managed PostgreSQL service with pgvector extension
-   - Run migrations: `docker-compose run migrate` or `alembic upgrade head`
-   - Configure connection pooling and SSL
-   - Set up regular backups and point-in-time recovery
-   - Monitor migration status in production deployments
+# RAG Configuration
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+MAX_CONTEXT_LENGTH=8000
+SIMILARITY_THRESHOLD=0.7
+MAX_RESULTS=5
 
-3. **Authorization (Oso Cloud):**
-   - Sign up for [Oso Cloud](https://cloud.osohq.com) production account
-   - Replace local Oso Dev Server with Oso Cloud endpoints
-   - Configure production API keys and policies
-   - Remove Oso Dev Server from production docker-compose
-
-4. **Security:**
-   - Use HTTPS/TLS certificates
-   - Configure proper CORS origins  
-   - Enable rate limiting and request throttling
-   - Set up monitoring, logging, and alerting
-   - Rotate JWT secrets and API keys regularly
+# Galileo Observability
+GALILEO_ENABLED=true
+GALILEO_API_KEY=your-production-galileo-api-key
+GALILEO_PROJECT_NAME=healthcare-rag-prod
+GALILEO_ENVIRONMENT=production
 
 
-## 🔒 Security
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+```
 
-### Authentication & Authorization
+**🌐 Frontend (frontend/.env)**
+```env
+# API Configuration
+VITE_API_BASE_URL=https://your-domain.com
+VITE_AUTH_SERVICE_PORT=8001
+VITE_PATIENT_SERVICE_PORT=8002
+VITE_RAG_SERVICE_PORT=8003
 
-- **JWT Tokens:** Secure token-based authentication
-- **Role-Based Access:** Doctor, Nurse, Admin roles with different permissions
-- **Policy Engine:** Oso policies for fine-grained authorization
-- **Database Security:** Row-level security with SQLAlchemy integration
+# App Configuration
+VITE_APP_NAME="Healthcare Support Portal"
+VITE_APP_VERSION="1.0.0"
 
-### Data Protection
+# Production
+VITE_DEBUG=false
+```
 
-- **Encryption:** Database connections use TLS
-- **Sensitive Data:** Marked documents have additional access controls
-- **Audit Trails:** All operations are logged with user attribution
-- **Password Security:** Bcrypt hashing for user passwords
+#### 2. **Security Checklist**
 
-### Security Best Practices
+- ✅ **Generate unique secret keys** for each service
+- ✅ **Use HTTPS** for all production URLs
+- ✅ **Configure Oso Cloud** instead of local Oso server
+- ✅ **Set DEBUG=false** for all services
+- ✅ **Use production database** with proper credentials
+- ✅ **Configure CORS** for your domain
+- ✅ **Set up monitoring** and logging
+- ✅ **Enable rate limiting** and request throttling
 
-- Regularly rotate JWT secrets
-- Use environment variables for sensitive configuration
-- Enable database connection encryption
-- Implement rate limiting for API endpoints
-- Monitor for suspicious access patterns
+#### 3. **Database Migration**
+```bash
+# Run migrations on production database
+docker-compose run migrate
+```
+
+#### 4. **Service Deployment**
+```bash
+# Deploy services (example with Docker)
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### Docker Deployment
+
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# Or build individual services
+docker build -f Dockerfile.auth -t auth-service .
+docker build -f Dockerfile.patient -t patient-service .
+docker build -f Dockerfile.rag -t rag-service .
+```
 
 ## 🔧 Troubleshooting
 
@@ -567,139 +754,133 @@ docker-compose run --rm migrate
 
 #### Service Won't Start
 ```bash
-# Check port availability
-lsof -i :8001  # or 8002, 8003
+# Check if ports are available
+lsof -i :8001
+lsof -i :8002
+lsof -i :8003
+lsof -i :3000
 
-# Check environment variables
-env | grep -E "(SECRET_KEY|DATABASE_URL|OPENAI_API_KEY)"
-
-# Check PYTHONPATH
-echo $PYTHONPATH
+# Check service logs
+tail -f logs/auth.log
+tail -f logs/patient.log
+tail -f logs/rag.log
 ```
 
 #### Database Connection Issues
 ```bash
+# Check if PostgreSQL is running
+docker ps | grep postgres
+
+# Check database logs
+docker logs healthcare-support-portal-postgres-1
+
 # Test database connection
-docker exec -it healthcare-support-portal-db-1 psql -U postgres -d healthcare -c "SELECT version();"
-
-# Check database URL format
-# Should be: postgresql+psycopg2://user:pass@host:port/database
-
-# Verify migrations are applied
-cd packages/common && uv run alembic current
-
-# Check if tables exist
-docker exec healthcare-support-portal-db-1 psql -U postgres -d healthcare -c "\dt"
+uv run python -c "from common.db import get_db; print('DB connection OK')"
 ```
 
-#### Migration Issues
+#### Environment Variable Issues
 ```bash
-# Service won't start due to outdated migrations
-docker-compose run migrate  # Apply missing migrations
+# Check if .env files exist
+ls -la packages/*/.env
+ls -la frontend/.env
 
-# Check migration status
-cd packages/common && uv run alembic current
+# Verify environment variables are loaded
+cd packages/auth && source .env && env | grep -E "(DEBUG|SECRET_KEY|DATABASE_URL)"
+cd packages/patient && source .env && env | grep -E "(DEBUG|SECRET_KEY|DATABASE_URL)"
+cd packages/rag && source .env && env | grep -E "(DEBUG|SECRET_KEY|OPENAI_API_KEY)"
 
-# View migration history
-cd packages/common && uv run alembic history
-
-# Reset migrations (DANGER: destroys data)
-cd packages/common && uv run alembic downgrade base
-docker-compose run migrate
+# Check for missing required variables
+grep -r "OPENAI_API_KEY" packages/rag/.env
+grep -r "SECRET_KEY" packages/*/.env
 ```
 
-#### OpenAI API Issues
+#### OpenAI API Errors
 ```bash
-# Test API key
+# Verify API key
+echo $OPENAI_API_KEY
+
+# Test OpenAI connection
 curl -H "Authorization: Bearer $OPENAI_API_KEY" \
-  "https://api.openai.com/v1/models"
+  https://api.openai.com/v1/models
 
-# Check quota and usage
-# Visit: https://platform.openai.com/usage
+# Check if API key is in .env file
+grep "OPENAI_API_KEY" packages/rag/.env
 ```
 
-#### Import Errors
+#### RAG System Issues
 ```bash
-# Verify common package installation
-cd packages/auth
-uv run python -c "from common.models import User; print('Success')"
+# Check embedding status
+curl -X GET "http://localhost:8003/api/v1/documents/embedding-statuses" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
-# Check PYTHONPATH in run scripts
-grep PYTHONPATH packages/*/run.sh
+# Regenerate embeddings if needed
+curl -X POST "http://localhost:8003/api/v1/documents/{doc_id}/regenerate-embeddings" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ### Debug Mode
 
-Enable debug logging:
-```bash
-export DEBUG=true
-export LOG_LEVEL=DEBUG
-```
+Set `DEBUG=true` for detailed logging:
+- Embedding generation logs
+- Vector search query details
+- AI response generation steps
+- Authorization decision logging
 
-### Getting Help
+## 📖 Contributing
 
-1. Check service-specific README files
-2. Review API documentation at `/docs` endpoints
-3. Check logs in `logs/` directory
-4. Verify environment configuration
+### Development Guidelines
 
-## 🤝 Contributing
+1. **Follow existing patterns** for async/await operations
+2. **Add comprehensive error handling** for external API calls
+3. **Update vector search logic** carefully to maintain performance
+4. **Test with various document types** and sizes
+5. **Consider cost implications** of AI model changes
+6. **Update documentation** for new features
 
-We welcome contributions! Please follow these guidelines:
+### Code Style
 
-### Development Setup
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Install development dependencies: `./setup.sh`
-4. Make your changes
-5. Add tests (when test framework is implemented)
-6. Update documentation
-7. Submit a pull request
-
-### Code Standards
-
-- **Python:** Follow PEP 8 style guidelines
-- **FastAPI:** Use async/await for database operations
-- **SQLAlchemy:** Use declarative models with proper relationships
-- **Oso:** Write clear, testable authorization policies
-- **Documentation:** Update README files for new features
-
-### Pull Request Process
-
-1. Ensure all services start without errors
-2. Update relevant README files
-3. Add example API calls for new endpoints
-4. Verify authorization policies work correctly
-5. Test with different user roles
+- Use **async/await** for AI operations
+- Follow **FastAPI** best practices
+- Implement **proper error handling**
+- Add **comprehensive logging**
+- Write **clear documentation**
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- **[Oso](https://osohq.com)** - For excellent authorization framework and SQLAlchemy integration
-- **[OpenAI](https://openai.com)** - For powerful embedding and chat completion models
-- **[pgvector](https://github.com/pgvector/pgvector)** - For efficient vector similarity search in PostgreSQL
-- **[FastAPI](https://fastapi.tiangolo.com)** - For the excellent Python web framework
-- **[uv](https://github.com/astral-sh/uv)** - For fast Python package management
-
-## 📞 Support
-
-For questions, issues, or feature requests:
-
-1. **Documentation:** Check service-specific README files
-2. **Issues:** Create a GitHub issue with detailed information
-3. **Discussions:** Use GitHub Discussions for general questions
-
 ---
 
-**Built with ❤️ for healthcare professionals who deserve better tools.**
+## 🎉 **Your RAG System is Ready!**
 
----
+You now have a **world-class RAG application** that can transform how your organization accesses and uses knowledge. 
 
-## 🏷️ Tags
+### 🔧 **Important Configuration Notes**
 
-`python` `fastapi` `rag` `openai` `postgresql` `pgvector` `oso` `sqlalchemy` `healthcare` `microservices` `jwt` `vector-search` `ai` `authorization` `uv`
+- **🔑 OpenAI API Key**: Required for RAG functionality - get yours at [OpenAI Platform](https://platform.openai.com/api-keys)
+- **🔐 Security Keys**: Generate unique secret keys for each service in production
+- **🗄️ Database**: Ensure PostgreSQL with pgvector extension is running
+- **🔍 Environment Files**: Each service has its own `.env` file for configuration
+- **📊 Galileo**: Observability platform for monitoring and analytics
+
+### 🚀 **Next Steps**
+
+1. **📖 [RAG Quick Start Guide](packages/rag/QUICK_START.md)**: Get up and running in 5 minutes
+2. **📚 [Complete RAG Guide](packages/rag/RAG_GUIDE.md)**: Master all RAG features
+3. **🔧 Configure Environment**: Set up all required environment variables
+4. **🧪 Test Your System**: Upload documents and ask questions
+5. **🚀 Deploy to Production**: Follow the production deployment guide
+
+### 📋 **Configuration Checklist**
+
+- ✅ **Environment files created** for all services
+- ✅ **OpenAI API key configured** in RAG service
+- ✅ **Secret keys generated** for all services
+- ✅ **Database connection** working
+- ✅ **All services starting** without errors
+- ✅ **RAG functionality** tested with document upload and query
+- ✅ **Galileo observability** configured (optional)
+- ✅ **Prometheus metrics** accessible at `/metrics` endpoint
+
+**Welcome to the future of intelligent knowledge management!** 🏥✨
 

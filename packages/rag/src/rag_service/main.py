@@ -13,7 +13,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
+from .observability import (
+    initialize_observability,
+    ObservabilityMiddleware,
+    logger
+)
 from .routers import chat, documents
+
+# Initialize observability components
+initialize_observability()
 
 # Set OpenAI API key
 openai.api_key = settings.openai_api_key
@@ -31,6 +39,9 @@ app = FastAPI(
     debug=settings.debug,
 )
 
+# Add observability middleware
+app.add_middleware(ObservabilityMiddleware)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -41,26 +52,63 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(documents.router, prefix="/api/v1/documents", tags=["Documents"])
+app.include_router(
+    documents.router, 
+    prefix="/api/v1/documents", 
+    tags=["Documents"]
+)
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 
 
 @app.on_event("startup")
 async def startup_event():
     """Verify migrations and start service"""
-    # Verify database migrations are current
-    require_migrations_current()
-    print(f"🚀 {settings.app_name} started on port {settings.port}")
+    try:
+        # Verify database migrations are current
+        require_migrations_current()
+        
+        logger.info(
+            f"🚀 {settings.app_name} started successfully",
+            port=settings.port,
+            galileo_enabled=settings.galileo_enabled
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to start {settings.app_name}", error=str(e))
+        raise
 
 
 @app.get("/")
 async def root():
-    return {"service": "rag_service", "status": "healthy", "version": "0.1.0"}
+    return {
+        "service": "rag_service", 
+        "status": "healthy", 
+        "version": "0.1.0",
+        "observability": {
+            "galileo_enabled": settings.galileo_enabled
+        }
+    }
 
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/observability")
+async def observability_status():
+    """Get observability configuration status"""
+    return {
+        "galileo": {
+            "enabled": settings.galileo_enabled,
+            "project": settings.galileo_project_name,
+            "environment": settings.galileo_environment
+        },
+        "logging": {
+            "level": settings.log_level,
+            "format": settings.log_format
+        }
+    }
 
 
 # Make Oso Cloud instance and settings available to routes

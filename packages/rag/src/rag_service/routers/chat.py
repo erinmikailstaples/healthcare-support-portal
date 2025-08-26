@@ -17,6 +17,13 @@ from sqlalchemy_oso_cloud import authorized
 
 from ..utils.embeddings import combine_chunks_for_context, similarity_search
 from ..utils.text_processing import calculate_token_count
+from ..observability import (
+    rag_query_context,
+    vector_search_context,
+    ai_response_context,
+    log_galileo_event,
+    logger
+)
 
 router = APIRouter()
 
@@ -60,39 +67,79 @@ async def search_documents(
     """
     settings = request.app.state.settings
 
-    # Get authorized documents query
-    authorized_query = db.query(Document).options(
-        authorized(current_user, "read", Document)
-    )
-
-    # Apply filters
-    if search_request.document_types:
-        authorized_query = authorized_query.filter(
-            Document.document_type.in_(search_request.document_types)
+    async with rag_query_context(
+        query_type="search",
+        user_role=current_user.role,
+        department=search_request.department
+    ) as query_id:
+        
+        # Get authorized documents query
+        authorized_query = db.query(Document).options(
+            authorized(current_user, "read", Document)
         )
 
-    if search_request.department:
-        authorized_query = authorized_query.filter(
-            Document.department == search_request.department
-        )
+        # Apply filters
+        if search_request.document_types:
+            authorized_query = authorized_query.filter(
+                Document.document_type.in_(search_request.document_types)
+            )
 
-    # Get authorized document IDs
-    authorized_docs = authorized_query.all()
-    authorized_doc_ids = [doc.id for doc in authorized_docs]
+        if search_request.department:
+            authorized_query = authorized_query.filter(
+                Document.department == search_request.department
+            )
 
-    if not authorized_doc_ids:
-        return SearchResponse(results=[], total_results=0)
+        # Get authorized document IDs
+        authorized_docs = authorized_query.all()
+        authorized_doc_ids = [doc.id for doc in authorized_docs]
 
-    # Perform similarity search
-    results = await similarity_search(
-        query_text=search_request.query,
-        db=db,
-        limit=search_request.limit or settings.max_results,
-        similarity_threshold=settings.similarity_threshold,
-        document_ids=authorized_doc_ids,
-    )
+        if not authorized_doc_ids:
+            logger.info(
+                "No authorized documents found for search",
+                query_id=query_id,
+                user_role=current_user.role,
+                department=search_request.department
+            )
+            return SearchResponse(results=[], total_results=0)
 
-    return SearchResponse(results=results, total_results=len(results))
+        # Perform similarity search with observability
+        async with vector_search_context(
+            result_count=search_request.limit or settings.max_results,
+            similarity_threshold=settings.similarity_threshold
+        ) as search_id:
+            
+            results = await similarity_search(
+                query_text=search_request.query,
+                db=db,
+                limit=search_request.limit or settings.max_results,
+                similarity_threshold=settings.similarity_threshold,
+                document_ids=authorized_doc_ids,
+            )
+
+            # Log to Galileo
+            log_galileo_event(
+                event_type="document_search",
+                event_data={
+                    "query": search_request.query,
+                    "document_types": search_request.document_types,
+                    "department": search_request.department,
+                    "results_count": len(results),
+                    "authorized_docs_count": len(authorized_doc_ids),
+                    "search_id": search_id
+                },
+                user_id=str(current_user.id),
+                session_id=query_id
+            )
+
+            logger.info(
+                "Document search completed",
+                query_id=query_id,
+                search_id=search_id,
+                results_count=len(results),
+                user_role=current_user.role
+            )
+
+            return SearchResponse(results=results, total_results=len(results))
 
 
 @router.post("/ask", response_model=ChatResponse)
@@ -107,65 +154,136 @@ async def ask_question(
     """
     settings = request.app.state.settings
 
-    # Get authorized documents for context
-    authorized_query = db.query(Document).options(
-        authorized(current_user, "read", Document)
-    )
-
-    # Apply context filters if provided
-    if chat_request.context_patient_id:
-        authorized_query = authorized_query.filter(
-            Document.patient_id == chat_request.context_patient_id
+    async with rag_query_context(
+        query_type="ask",
+        user_role=current_user.role,
+        department=chat_request.context_department
+    ) as query_id:
+        
+        # Get authorized documents for context
+        authorized_query = db.query(Document).options(
+            authorized(current_user, "read", Document)
         )
 
-    if chat_request.context_department:
-        authorized_query = authorized_query.filter(
-            Document.department == chat_request.context_department
-        )
+        # Apply context filters if provided
+        if chat_request.context_patient_id:
+            authorized_query = authorized_query.filter(
+                Document.patient_id == chat_request.context_patient_id
+            )
 
-    # Get authorized document IDs
-    authorized_docs = authorized_query.all()
-    authorized_doc_ids = [doc.id for doc in authorized_docs]
+        if chat_request.context_department:
+            authorized_query = authorized_query.filter(
+                Document.department == chat_request.context_department
+            )
 
-    sources = []
-    context_used = False
+        # Get authorized document IDs
+        authorized_docs = authorized_query.all()
+        authorized_doc_ids = [doc.id for doc in authorized_docs]
 
-    if authorized_doc_ids:
-        # Perform similarity search
-        search_results = await similarity_search(
-            query_text=chat_request.message,
-            db=db,
-            limit=chat_request.max_results or settings.max_results,
-            similarity_threshold=settings.similarity_threshold,
-            document_ids=authorized_doc_ids,
-        )
+        sources = []
+        context_used = False
 
-        sources = search_results
-        context_used = len(search_results) > 0
+        if authorized_doc_ids:
+            # Perform similarity search with observability
+            async with vector_search_context(
+                result_count=chat_request.max_results or settings.max_results,
+                similarity_threshold=settings.similarity_threshold
+            ) as search_id:
+                
+                search_results = await similarity_search(
+                    query_text=chat_request.message,
+                    db=db,
+                    limit=chat_request.max_results or settings.max_results,
+                    similarity_threshold=settings.similarity_threshold,
+                    document_ids=authorized_doc_ids,
+                )
 
-    # Generate AI response
-    try:
-        ai_response = await generate_ai_response(
-            question=chat_request.message,
-            context_results=sources,
-            user_role=current_user.role,
-            settings=settings,
-        )
+                sources = search_results
+                context_used = len(search_results) > 0
 
-        token_count = calculate_token_count(ai_response)
+                logger.info(
+                    "Vector search completed for AI question",
+                    query_id=query_id,
+                    search_id=search_id,
+                    sources_count=len(sources),
+                    context_used=context_used
+                )
 
-        return ChatResponse(
-            response=ai_response,
-            sources=sources,
-            token_count=token_count,
-            context_used=context_used,
-        )
+        # Generate AI response with observability
+        try:
+            token_count = calculate_token_count(chat_request.message)
+            
+            async with ai_response_context(
+                model=settings.chat_model,
+                token_count=token_count
+            ) as response_id:
+                
+                ai_response = await generate_ai_response(
+                    question=chat_request.message,
+                    context_results=sources,
+                    user_role=current_user.role,
+                    settings=settings,
+                )
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating response: {str(e)}",
-        )
+                final_token_count = calculate_token_count(ai_response)
+
+                # Log to Galileo
+                log_galileo_event(
+                    event_type="ai_question_answered",
+                    event_data={
+                        "question": chat_request.message,
+                        "context_used": context_used,
+                        "sources_count": len(sources),
+                        "response_length": len(ai_response),
+                        "input_tokens": token_count,
+                        "output_tokens": final_token_count,
+                        "model": settings.chat_model,
+                        "response_id": response_id
+                    },
+                    user_id=str(current_user.id),
+                    session_id=query_id
+                )
+
+                logger.info(
+                    "AI question answered successfully",
+                    query_id=query_id,
+                    response_id=response_id,
+                    context_used=context_used,
+                    sources_count=len(sources),
+                    user_role=current_user.role
+                )
+
+                return ChatResponse(
+                    response=ai_response,
+                    sources=sources,
+                    token_count=final_token_count,
+                    context_used=context_used,
+                )
+
+        except Exception as e:
+            logger.error(
+                "Failed to generate AI response",
+                query_id=query_id,
+                error=str(e),
+                user_role=current_user.role
+            )
+            
+            # Log error to Galileo
+            log_galileo_event(
+                event_type="ai_response_error",
+                event_data={
+                    "question": chat_request.message,
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                },
+                user_id=str(current_user.id),
+                session_id=query_id
+            )
+            
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error generating response: {str(e)}",
+            )
 
 
 async def generate_ai_response(
@@ -216,7 +334,7 @@ async def generate_ai_response(
         response = client.chat.completions.create(
             model=settings.chat_model,
             messages=messages,
-            max_tokens=1000,
+            # max_tokens=1000,
             temperature=0.7,
         )
 
@@ -259,6 +377,24 @@ async def submit_feedback(
     Submit feedback on AI responses
     Note: In a full implementation, you'd store feedback in the database
     """
+    # Log feedback to Galileo
+    log_galileo_event(
+        event_type="ai_response_feedback",
+        event_data={
+            "response_id": response_id,
+            "rating": rating,
+            "feedback": feedback
+        },
+        user_id=str(current_user.id)
+    )
+    
+    logger.info(
+        "AI response feedback submitted",
+        response_id=response_id,
+        rating=rating,
+        user_role=current_user.role
+    )
+    
     # Placeholder - would implement feedback storage
     return {
         "message": "Thank you for your feedback",

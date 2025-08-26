@@ -10,8 +10,8 @@ from .routers import auth, users
 # Initialize SQLAlchemy Oso Cloud with registry and server settings
 sqlalchemy_oso_cloud.init(
     Base.registry,
-    url=settings.oso_server_url,
-    api_key="e_0123456789_12345_osotesttoken01xiIn",
+    url=settings.oso_url,
+    api_key=settings.oso_auth,
 )
 
 # Create FastAPI app

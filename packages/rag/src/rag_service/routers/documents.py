@@ -30,6 +30,13 @@ from ..utils.embeddings import (
     store_document_embeddings,
 )
 from ..utils.text_processing import chunk_text, clean_text
+from ..observability import (
+    embedding_generation_context,
+    log_document_upload,
+    log_embeddings_stored,
+    log_galileo_event,
+    logger
+)
 
 router = APIRouter()
 
@@ -60,6 +67,16 @@ async def list_documents(
     # Apply pagination
     documents = query.offset(skip).limit(limit).all()
 
+    logger.info(
+        "Documents listed",
+        user_role=current_user.role,
+        document_type=document_type,
+        department=department,
+        count=len(documents),
+        skip=skip,
+        limit=limit
+    )
+
     return documents
 
 
@@ -82,6 +99,13 @@ async def get_all_embedding_statuses(
         embedding_status = await get_embedding_status(document.id, db)
         statuses[document.id] = embedding_status
 
+    logger.info(
+        "Embedding statuses retrieved",
+        user_role=current_user.role,
+        documents_count=len(authorized_documents),
+        statuses_count=len(statuses)
+    )
+
     return statuses
 
 
@@ -99,17 +123,38 @@ async def get_document(
 
     # Get the document
     document = db.query(Document).filter(Document.id == document_id).first()
+
     if not document:
+        logger.warning(
+            "Document not found",
+            document_id=document_id,
+            user_role=current_user.role
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
         )
 
-    # Check if current user is authorized to read this document
-    if not oso.authorize(current_user, "read", document):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this document",
+    # Check authorization
+    try:
+        oso.authorize(current_user, "read", document)
+    except Exception as e:
+        logger.warning(
+            "Unauthorized document access attempt",
+            document_id=document_id,
+            user_role=current_user.role,
+            error=str(e)
         )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
+
+    logger.info(
+        "Document accessed",
+        document_id=document_id,
+        user_role=current_user.role,
+        document_type=document.document_type,
+        department=document.department
+    )
 
     return document
 
@@ -122,69 +167,58 @@ async def create_document(
     db: Session = Depends(get_db),
 ):
     """
-    Create a new document with embeddings
+    Create a new document
     """
-    settings = request.app.state.settings
-
-    # Check authorization - only doctors and admins can create documents
-    if current_user.role not in ["doctor", "admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to create documents",
-        )
-
-    # Clean and process content
-    cleaned_content = clean_text(document_data.content)
-
     # Create document
-    db_document = Document(
+    document = Document(
         title=document_data.title,
-        content=cleaned_content,
+        content=document_data.content,
         document_type=document_data.document_type,
-        patient_id=document_data.patient_id,
         department=document_data.department,
-        created_by_id=current_user.id,
         is_sensitive=document_data.is_sensitive,
+        created_by_id=current_user.id,
     )
 
-    db.add(db_document)
+    db.add(document)
     db.commit()
-    db.refresh(db_document)
+    db.refresh(document)
 
-    # Generate and store embeddings
-    chunks = chunk_text(
-        cleaned_content,
-        chunk_size=settings.chunk_size,
-        chunk_overlap=settings.chunk_overlap,
+    # Sync Oso facts
+    sync_document_access(document)
+
+    # Log document creation
+    log_galileo_event(
+        event_type="document_created",
+        event_data={
+            "document_id": document.id,
+            "title": document.title,
+            "document_type": document.document_type,
+            "department": document.department,
+            "is_sensitive": document.is_sensitive,
+            "content_length": len(document.content)
+        },
+        user_id=str(current_user.id)
     )
 
-    embedding_success = await store_document_embeddings(
-        db_document, chunks, db, settings.embedding_model
+    logger.info(
+        "Document created",
+        document_id=document.id,
+        user_role=current_user.role,
+        document_type=document.document_type,
+        department=document.department
     )
 
-    if not embedding_success:
-        print(f"Warning: Failed to generate embeddings for document {db_document.id}")
-
-    # Sync OSO facts for new document
-    try:
-        sync_document_access(db_document)
-    except Exception as e:
-        print(
-            f"Warning: Failed to sync OSO facts for new document {db_document.id}: {e}"
-        )
-
-    return db_document
+    return document
 
 
-@router.post("/upload", response_model=DocumentResponse)
+@router.post("/upload")
 async def upload_document(
-    title: str,
-    document_type: str,
-    department: str | None = None,
-    patient_id: int | None = None,
-    is_sensitive: bool = False,
     file: UploadFile = File(...),
-    request: Request = Request,
+    title: str = None,
+    document_type: str = None,
+    department: str = None,
+    is_sensitive: bool = False,
+    request: Request = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -193,103 +227,135 @@ async def upload_document(
     """
     settings = request.app.state.settings
 
-    # Check authorization
-    if current_user.role not in ["doctor", "admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to upload documents",
-        )
-
     # Read file content
-    try:
-        content = await file.read()
-        content_str = content.decode("utf-8")
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error reading file: {str(e)}",
-        )
-
-    # Clean and process content
-    cleaned_content = clean_text(content_str)
+    content = await file.read()
+    file_size = len(content)
+    
+    # Clean and process text
+    text_content = clean_text(content.decode("utf-8"))
+    
+    # Use filename as title if not provided
+    if not title:
+        title = file.filename
 
     # Create document
-    db_document = Document(
+    document = Document(
         title=title,
-        content=cleaned_content,
-        document_type=document_type,
-        patient_id=patient_id,
-        department=department,
-        created_by_id=current_user.id,
+        content=text_content,
+        document_type=document_type or "unknown",
+        department=department or current_user.department,
         is_sensitive=is_sensitive,
+        created_by_id=current_user.id,
     )
 
-    db.add(db_document)
+    db.add(document)
     db.commit()
-    db.refresh(db_document)
+    db.refresh(document)
 
-    # Generate and store embeddings
-    chunks = chunk_text(
-        cleaned_content,
-        chunk_size=settings.chunk_size,
-        chunk_overlap=settings.chunk_overlap,
+    # Sync Oso facts
+    sync_document_access(document)
+
+    # Log document upload
+    log_document_upload(
+        document_type=document.document_type,
+        department=document.department,
+        file_size=file_size,
+        document_id=document.id
     )
 
-    embedding_success = await store_document_embeddings(
-        db_document, chunks, db, settings.embedding_model
-    )
-
-    if not embedding_success:
-        print(f"Warning: Failed to generate embeddings for document {db_document.id}")
-
-    # Sync OSO facts for uploaded document
+    # Generate embeddings with observability
     try:
-        sync_document_access(db_document)
+        chunks = chunk_text(
+            text_content,
+            chunk_size=settings.chunk_size,
+            chunk_overlap=settings.chunk_overlap,
+        )
+
+        async with embedding_generation_context(
+            model=settings.embedding_model,
+            chunk_count=len(chunks)
+        ) as operation_id:
+            
+            success = await store_document_embeddings(
+                document=document,
+                chunks=chunks,
+                db=db,
+                model=settings.embedding_model,
+            )
+
+            if success:
+                log_embeddings_stored(
+                    document_id=document.id,
+                    chunk_count=len(chunks)
+                )
+
+                # Log to Galileo
+                log_galileo_event(
+                    event_type="document_uploaded_with_embeddings",
+                    event_data={
+                        "document_id": document.id,
+                        "title": document.title,
+                        "document_type": document.document_type,
+                        "department": document.department,
+                        "file_size": file_size,
+                        "chunks_count": len(chunks),
+                        "embedding_model": settings.embedding_model,
+                        "operation_id": operation_id
+                    },
+                    user_id=str(current_user.id)
+                )
+
+                logger.info(
+                    "Document uploaded and embeddings generated successfully",
+                    document_id=document.id,
+                    user_role=current_user.role,
+                    chunks_count=len(chunks),
+                    operation_id=operation_id
+                )
+
+                return {
+                    "message": "Document uploaded and processed successfully",
+                    "document_id": document.id,
+                    "chunks_created": len(chunks),
+                    "embedding_status": "completed"
+                }
+            else:
+                logger.error(
+                    "Failed to generate embeddings for uploaded document",
+                    document_id=document.id,
+                    user_role=current_user.role
+                )
+
+                return {
+                    "message": "Document uploaded but embedding generation failed",
+                    "document_id": document.id,
+                    "embedding_status": "failed"
+                }
+
     except Exception as e:
-        print(
-            f"Warning: Failed to sync OSO facts for uploaded document {db_document.id}: {e}"
+        logger.error(
+            "Error processing uploaded document",
+            document_id=document.id,
+            user_role=current_user.role,
+            error=str(e)
         )
 
-    return db_document
+        # Log error to Galileo
+        log_galileo_event(
+            event_type="document_upload_error",
+            event_data={
+                "document_id": document.id,
+                "title": document.title,
+                "error": str(e),
+                "error_type": type(e).__name__
+            },
+            user_id=str(current_user.id)
+        )
 
-
-@router.delete("/{document_id}")
-async def delete_document(
-    document_id: int,
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """
-    Delete document (admin only)
-    """
-    oso = get_oso()
-
-    # Get the document
-    document = db.query(Document).filter(Document.id == document_id).first()
-    if not document:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing document: {str(e)}",
         )
-
-    # Check if current user is authorized to write this document
-    if not oso.authorize(current_user, "write", document):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete this document",
-        )
-
-    # Remove OSO facts before deleting document
-    try:
-        remove_document_access(document.id)
-    except Exception as e:
-        print(f"Warning: Failed to remove OSO facts for document {document.id}: {e}")
-
-    # Delete document and its embeddings (cascade)
-    db.delete(document)
-    db.commit()
-
-    return {"message": "Document deleted successfully"}
 
 
 @router.post("/{document_id}/regenerate-embeddings")
@@ -300,109 +366,183 @@ async def regenerate_embeddings(
     db: Session = Depends(get_db),
 ):
     """
-    Regenerate embeddings for a specific document
+    Regenerate embeddings for a document
     """
-    oso = get_oso()
     settings = request.app.state.settings
 
-    # Get the document
+    # Get document
     document = db.query(Document).filter(Document.id == document_id).first()
+
     if not document:
+        logger.warning(
+            "Document not found for embedding regeneration",
+            document_id=document_id,
+            user_role=current_user.role
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
         )
 
-    # Check if current user is authorized to write this document
-    if not oso.authorize(current_user, "write", document):
+    # Check authorization
+    try:
+        oso = get_oso()
+        oso.authorize(current_user, "read", document)
+    except Exception as e:
+        logger.warning(
+            "Unauthorized embedding regeneration attempt",
+            document_id=document_id,
+            user_role=current_user.role,
+            error=str(e)
+        )
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to regenerate embeddings for this document",
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
         )
 
-    # Regenerate embeddings
-    result = await regenerate_document_embeddings(
-        document, db, settings.embedding_model
-    )
-
-    if not result["success"]:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=result["message"]
+    # Regenerate embeddings with observability
+    try:
+        chunks = chunk_text(
+            document.content,
+            chunk_size=settings.chunk_size,
+            chunk_overlap=settings.chunk_overlap,
         )
 
-    return result
+        async with embedding_generation_context(
+            model=settings.embedding_model,
+            chunk_count=len(chunks)
+        ) as operation_id:
+            
+            result = await regenerate_document_embeddings(
+                document=document,
+                db=db,
+                model=settings.embedding_model,
+            )
+
+            if result["success"]:
+                log_embeddings_stored(
+                    document_id=document.id,
+                    chunk_count=len(chunks)
+                )
+
+                # Log to Galileo
+                log_galileo_event(
+                    event_type="embeddings_regenerated",
+                    event_data={
+                        "document_id": document.id,
+                        "title": document.title,
+                        "chunks_count": len(chunks),
+                        "embedding_model": settings.embedding_model,
+                        "operation_id": operation_id
+                    },
+                    user_id=str(current_user.id)
+                )
+
+                logger.info(
+                    "Document embeddings regenerated successfully",
+                    document_id=document.id,
+                    user_role=current_user.role,
+                    chunks_count=len(chunks),
+                    operation_id=operation_id
+                )
+
+                return result
+            else:
+                logger.error(
+                    "Failed to regenerate document embeddings",
+                    document_id=document.id,
+                    user_role=current_user.role,
+                    error=result["message"]
+                )
+
+                return result
+
+    except Exception as e:
+        logger.error(
+            "Error regenerating document embeddings",
+            document_id=document_id,
+            user_role=current_user.role,
+            error=str(e)
+        )
+
+        # Log error to Galileo
+        log_galileo_event(
+            event_type="embedding_regeneration_error",
+            event_data={
+                "document_id": document_id,
+                "error": str(e),
+                "error_type": type(e).__name__
+            },
+            user_id=str(current_user.id)
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error regenerating embeddings: {str(e)}",
+        )
 
 
-@router.get("/{document_id}/embedding-status")
-async def get_document_embedding_status(
+@router.delete("/{document_id}")
+async def delete_document(
     document_id: int,
     request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    Get embedding status for a specific document
+    Delete a document
     """
-    oso = get_oso()
-
-    # Get the document
+    # Get document
     document = db.query(Document).filter(Document.id == document_id).first()
+
     if not document:
+        logger.warning(
+            "Document not found for deletion",
+            document_id=document_id,
+            user_role=current_user.role
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
         )
 
-    # Check if current user is authorized to read this document
-    if not oso.authorize(current_user, "read", document):
+    # Check authorization
+    try:
+        oso = get_oso()
+        oso.authorize(current_user, "delete", document)
+    except Exception as e:
+        logger.warning(
+            "Unauthorized document deletion attempt",
+            document_id=document_id,
+            user_role=current_user.role,
+            error=str(e)
+        )
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this document",
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
         )
 
-    # Get embedding status
-    embedding_status = await get_embedding_status(document_id, db)
-    return embedding_status
+    # Remove Oso facts
+    remove_document_access(document)
 
+    # Delete document
+    db.delete(document)
+    db.commit()
 
-@router.post("/regenerate-all-embeddings")
-async def regenerate_all_embeddings(
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """
-    Regenerate embeddings for all documents (admin only)
-    """
-    settings = request.app.state.settings
+    # Log to Galileo
+    log_galileo_event(
+        event_type="document_deleted",
+        event_data={
+            "document_id": document_id,
+            "title": document.title,
+            "document_type": document.document_type,
+            "department": document.department
+        },
+        user_id=str(current_user.id)
+    )
 
-    # Check if current user is admin
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can regenerate all embeddings",
-        )
+    logger.info(
+        "Document deleted",
+        document_id=document_id,
+        user_role=current_user.role,
+        document_type=document.document_type,
+        department=document.department
+    )
 
-    # Get all documents
-    documents = db.query(Document).all()
-
-    results = {
-        "total_documents": len(documents),
-        "successful": 0,
-        "failed": 0,
-        "details": [],
-    }
-
-    for document in documents:
-        result = await regenerate_document_embeddings(
-            document, db, settings.embedding_model
-        )
-
-        if result["success"]:
-            results["successful"] += 1
-        else:
-            results["failed"] += 1
-
-        results["details"].append(
-            {"document_id": document.id, "title": document.title, **result}
-        )
-
-    return results
+    return {"message": "Document deleted successfully"}
