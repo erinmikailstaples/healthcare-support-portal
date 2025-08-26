@@ -1,30 +1,174 @@
-# RAG Service
+# 🤖 RAG (Retrieval-Augmented Generation) Service
 
-The RAG (Retrieval-Augmented Generation) Service provides intelligent document management and AI-powered question answering for the Healthcare Support Portal. It combines vector search with OpenAI's GPT models to deliver contextually relevant responses.
+A **production-ready RAG application** that combines vector search with AI-powered responses for intelligent document management and question answering.
 
-## Features
+## 🎯 **What is RAG?**
 
-- **Document Management:** CRUD operations with automatic embedding generation
-- **Vector Search:** Semantic search using pgvector and OpenAI embeddings
-- **AI Chat:** Context-aware responses powered by OpenAI GPT models
-- **File Upload:** Process and embed various document formats
-- **Authorization:** Role-based access control with Oso policies
-- **Smart Chunking:** Intelligent text segmentation for optimal embedding
-- **Context Filtering:** Search within specific patients or departments
-- **Role-based Responses:** AI responses tailored to user roles
+**RAG (Retrieval-Augmented Generation)** is a revolutionary AI technique that:
 
-## Quick Start
+1. **🔍 Retrieves** relevant information from your knowledge base
+2. **🤖 Generates** intelligent, contextual responses using AI
+3. **✅ Provides** factual, up-to-date information with source attribution
 
-### Prerequisites
+### **Why RAG is Game-Changing**
 
-- Python 3.8+
+Traditional AI has limitations:
+- ❌ **Knowledge cutoff**: Only knows what it was trained on
+- ❌ **Hallucinations**: Can make up false information  
+- ❌ **No sources**: Can't verify where information comes from
+
+RAG solves these by:
+- ✅ **Always current**: Uses your latest documents and data
+- ✅ **Factual responses**: Grounded in real information
+- ✅ **Source transparency**: Shows exactly which documents were used
+- ✅ **Customizable**: Tailored to your specific domain
+
+## 🚀 **Quick Start**
+
+### **Get Running in 5 Minutes**
+
+1. **Start all services**:
+   ```bash
+   ./run_all.sh
+   ```
+
+2. **Set your OpenAI API key**:
+   ```bash
+   export OPENAI_API_KEY="your-api-key-here"
+   ```
+
+3. **Upload a document**:
+   ```bash
+   curl -X POST "http://localhost:8003/api/v1/documents/upload" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -F "file=@your_document.pdf" \
+     -F "title=Medical Guidelines" \
+     -F "document_type=guidelines"
+   ```
+
+4. **Ask a question**:
+   ```bash
+   curl -X POST "http://localhost:8003/api/v1/chat/ask" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"message": "What are the treatment guidelines?"}'
+   ```
+
+**📖 For detailed instructions, see [QUICK_START.md](QUICK_START.md)**
+
+## 🏗️ **Architecture**
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   User Query    │───▶│  Vector Search  │───▶│  AI Generation  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                              │                        │
+                              ▼                        ▼
+                       ┌─────────────────┐    ┌─────────────────┐
+                       │  Document Store │    │  Context-Aware  │
+                       │  (pgvector)     │    │   Response      │
+                       └─────────────────┘    └─────────────────┘
+```
+
+### **Core Components**
+
+- **📚 Document Processing**: Upload, chunk, and embed documents
+- **🔍 Vector Search**: Semantic similarity search with pgvector
+- **🤖 AI Generation**: OpenAI GPT-powered responses
+- **🔐 Authorization**: Role-based access control with Oso
+- **🌐 Web Interface**: React-based frontend for easy interaction
+
+## ✨ **Key Features**
+
+### **🔍 Intelligent Document Search**
+- **Semantic search**: Find documents even without exact keywords
+- **Department filtering**: Search within specific departments
+- **Document type filtering**: Filter by guidelines, research, procedures
+- **Similarity scoring**: Configurable relevance thresholds
+
+### **🤖 AI-Powered Q&A**
+- **Context-aware responses**: Uses relevant documents to inform answers
+- **Role-based responses**: Tailored for doctors, nurses, administrators
+- **Source attribution**: Shows which documents were used
+- **Fallback handling**: Graceful responses when no context is found
+
+### **🔐 Enterprise Security**
+- **JWT authentication**: Secure user sessions
+- **Oso authorization**: Fine-grained access control
+- **Department isolation**: Users only see their department's documents
+- **Audit trails**: Track all document access and modifications
+
+### **📊 Monitoring & Analytics**
+- **Embedding status tracking**: Monitor document processing
+- **Performance metrics**: Track response times and quality
+- **Health checks**: Service monitoring and diagnostics
+
+## 🎯 **Use Cases**
+
+### **🏥 Healthcare**
+- **Medical Guidelines**: Quick access to latest treatment protocols
+- **Patient Documentation**: Search through patient records and notes
+- **Research Papers**: Find relevant medical research and studies
+- **Procedure Manuals**: Access step-by-step clinical procedures
+
+### **💼 Business**
+- **Policy Documents**: Search company policies and procedures
+- **Training Materials**: Access onboarding and training content
+- **Technical Documentation**: Find product and system documentation
+- **Knowledge Base**: Centralized organizational knowledge
+
+### **🎓 Education**
+- **Course Materials**: Search through educational content
+- **Research Papers**: Access academic literature and studies
+- **Study Guides**: Find relevant study materials and resources
+
+## 📚 **Documentation**
+
+- **🚀 [Quick Start Guide](QUICK_START.md)**: Get up and running in 5 minutes
+- **📖 [Complete User Guide](RAG_GUIDE.md)**: Comprehensive usage instructions
+- **🚀 [Enhancement Ideas](ENHANCEMENTS.md)**: Advanced features and improvements
+- **🔧 [API Documentation](http://localhost:8003/docs)**: Interactive API docs
+
+## 🛠️ **Technology Stack**
+
+- **🐍 Backend**: FastAPI with SQLAlchemy
+- **🗄️ Database**: PostgreSQL with pgvector extension
+- **🧠 AI**: OpenAI GPT and embedding models
+- **🔐 Security**: Oso authorization, JWT authentication
+- **🌐 Frontend**: React with TypeScript
+- **📦 Package Management**: uv workspaces
+
+## 🔧 **Configuration**
+
+### **Environment Variables**
+```env
+# Core Configuration
+DEBUG=true
+SECRET_KEY=your-secret-key-here
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/healthcare
+
+# OpenAI Configuration
+OPENAI_API_KEY=your-openai-api-key-here
+EMBEDDING_MODEL=text-embedding-3-small
+CHAT_MODEL=gpt-4o-mini
+
+# RAG Configuration
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+MAX_CONTEXT_LENGTH=8000
+SIMILARITY_THRESHOLD=0.7
+MAX_RESULTS=5
+```
+
+## 🚀 **Getting Started**
+
+### **Prerequisites**
+- Python 3.11+
 - PostgreSQL with pgvector extension
 - OpenAI API key
 - uv package manager
-- Authentication Service running (for JWT validation)
 
-### Installation
-
+### **Installation**
 ```bash
 # From project root
 uv sync
@@ -34,303 +178,17 @@ cd packages/rag
 uv sync
 ```
 
-### Environment Variables
-
-Create a `.env` file or set these environment variables:
-
-```env
-DEBUG=true
-SECRET_KEY=your-secret-key-here
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/healthcare
-OPENAI_API_KEY=your-openai-api-key-here
-
-# Optional RAG Configuration
-EMBEDDING_MODEL=text-embedding-3-small
-CHAT_MODEL=gpt-4o-mini
-CHUNK_SIZE=1000
-CHUNK_OVERLAP=200
-MAX_CONTEXT_LENGTH=8000
-SIMILARITY_THRESHOLD=0.7
-MAX_RESULTS=5
-```
-
-### Running the Service
-
+### **Running the Service**
 ```bash
-# Set environment variables and run
+# Set environment variables
 export PYTHONPATH="../common/src:$PYTHONPATH"
 export OPENAI_API_KEY="your-openai-api-key-here"
+
+# Start the service
 uv run uvicorn src.rag_service.main:app --reload --port 8003
 
-# Or use the run script from package directory
-cd packages/rag
+# Or use the run script
 ./run.sh
-```
-
-The service will be available at http://localhost:8003
-
-### API Documentation
-
-Interactive API docs are available at:
-- Swagger UI: http://localhost:8003/docs
-- ReDoc: http://localhost:8003/redoc
-
-## API Endpoints
-
-### Document Management
-
-| Method | Endpoint | Description | Auth Required | Roles |
-|--------|----------|-------------|---------------|-------|
-| GET | `/api/v1/documents/` | List documents (authorized) | Yes | All |
-| GET | `/api/v1/documents/{doc_id}` | Get specific document | Yes | Based on access rules |
-| POST | `/api/v1/documents/` | Create new document | Yes | doctor, admin |
-| POST | `/api/v1/documents/upload` | Upload document file | Yes | doctor, admin |
-| DELETE | `/api/v1/documents/{doc_id}` | Delete document | Yes | admin |
-
-### AI Chat & Search
-
-| Method | Endpoint | Description | Auth Required | Roles |
-|--------|----------|-------------|---------------|-------|
-| POST | `/api/v1/chat/search` | Vector similarity search | Yes | All |
-| POST | `/api/v1/chat/ask` | AI-powered Q&A | Yes | All |
-| GET | `/api/v1/chat/conversation-history` | Get chat history | Yes | All |
-| POST | `/api/v1/chat/feedback` | Submit response feedback | Yes | All |
-
-### Health Check
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/health` | Service health check | No |
-| GET | `/` | Service info | No |
-
-## Example Usage
-
-### Get Your JWT Token First
-
-```bash
-# Login via auth service
-curl -X POST "http://localhost:8001/api/v1/auth/login" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=dr_smith&password=secure_password"
-```
-
-### Create a Document
-
-```bash
-curl -X POST "http://localhost:8003/api/v1/documents/" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Diabetes Management Protocol",
-    "content": "Type 2 diabetes management includes monitoring blood glucose levels, dietary modifications, regular exercise, and medication adherence. Patients should check blood sugar levels at least twice daily and maintain HbA1c levels below 7%.",
-    "document_type": "protocol",
-    "department": "endocrinology",
-    "is_sensitive": false
-  }'
-```
-
-### Upload a Document File
-
-```bash
-curl -X POST "http://localhost:8003/api/v1/documents/upload" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -F "file=@protocol.txt" \
-  -F "title=Patient Care Protocol" \
-  -F "document_type=protocol" \
-  -F "department=general" \
-  -F "is_sensitive=false"
-```
-
-### Search Documents
-
-```bash
-curl -X POST "http://localhost:8003/api/v1/chat/search" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "diabetes treatment guidelines",
-    "document_types": ["protocol", "guideline"],
-    "department": "endocrinology",
-    "limit": 10
-  }'
-```
-
-Response:
-```json
-{
-  "results": [
-    {
-      "embedding_id": 1,
-      "document_id": 1,
-      "content_chunk": "Type 2 diabetes management includes...",
-      "document_title": "Diabetes Management Protocol",
-      "document_type": "protocol",
-      "department": "endocrinology",
-      "similarity": 0.89
-    }
-  ],
-  "total_results": 1
-}
-```
-
-### Ask an AI Question
-
-```bash
-curl -X POST "http://localhost:8003/api/v1/chat/ask" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "What are the best practices for diabetes management?",
-    "context_department": "endocrinology",
-    "max_results": 5
-  }'
-```
-
-Response:
-```json
-{
-  "response": "Based on the available protocols, diabetes management best practices include:\n\n1. Regular blood glucose monitoring (at least twice daily)\n2. Maintaining HbA1c levels below 7%\n3. Dietary modifications focusing on carbohydrate control\n4. Regular physical exercise\n5. Medication adherence as prescribed\n\nThese recommendations are based on current endocrinology department protocols.",
-  "sources": [
-    {
-      "document_title": "Diabetes Management Protocol",
-      "similarity": 0.89,
-      "content_chunk": "Type 2 diabetes management includes..."
-    }
-  ],
-  "token_count": 95,
-  "context_used": true
-}
-```
-
-## AI Models and Configuration
-
-### Embedding Models
-- **Default:** `text-embedding-3-small` (1536 dimensions)
-- **Alternative:** `text-embedding-3-large` (3072 dimensions, higher accuracy)
-
-### Chat Models
-- **Default:** `gpt-4o-mini` (cost-effective, fast)
-- **Alternative:** `gpt-4o` (higher quality responses)
-
-### Chunking Strategy
-- **Chunk Size:** 1000 characters (configurable)
-- **Overlap:** 200 characters (preserves context across chunks)
-- **Token-aware:** Uses tiktoken for accurate token counting
-
-## Authorization Rules
-
-### Document Access
-- **Doctors:** Can read documents for their patients + general documents
-- **Nurses:** Can read non-sensitive documents in their department
-- **Admins:** Can read all documents
-
-### Document Creation
-- **Doctors:** Can create documents
-- **Admins:** Can create and delete documents
-- **Nurses:** Read-only access
-
-### AI Chat Access
-- All authenticated users can use AI chat
-- Context is filtered based on document access permissions
-- Response style adapts to user role
-
-## Data Models
-
-### Document Schema
-
-```json
-{
-  "id": 1,
-  "title": "Diabetes Management Protocol",
-  "content": "Full document content...",
-  "document_type": "protocol",
-  "patient_id": null,
-  "department": "endocrinology",
-  "created_by_id": 1,
-  "is_sensitive": false,
-  "created_at": "2024-01-15T10:00:00Z"
-}
-```
-
-### Chat Request Schema
-
-```json
-{
-  "message": "What are the best practices for diabetes management?",
-  "context_patient_id": null,
-  "context_department": "endocrinology",
-  "max_results": 5
-}
-```
-
-### Search Request Schema
-
-```json
-{
-  "query": "diabetes treatment",
-  "document_types": ["protocol", "guideline"],
-  "department": "endocrinology",
-  "limit": 10
-}
-```
-
-## Vector Search Details
-
-### Similarity Calculation
-- Uses cosine similarity with pgvector
-- Threshold: 0.7 (configurable)
-- Returns similarity score with results
-
-### Performance Optimization
-- Indexed vector columns
-- Efficient similarity queries
-- Authorized document filtering at database level
-
-## Development
-
-### Project Structure
-
-```
-src/rag_service/
-├── __init__.py
-├── main.py              # FastAPI application
-├── config.py            # Configuration settings
-├── routers/
-│   ├── __init__.py
-│   ├── documents.py     # Document management
-│   └── chat.py          # AI chat and search
-└── utils/
-    ├── __init__.py
-    ├── embeddings.py    # Vector operations
-    └── text_processing.py  # Text chunking and cleaning
-```
-
-### Key Dependencies
-
-- **FastAPI:** Web framework
-- **OpenAI:** AI models and embeddings
-- **pgvector:** Vector similarity search
-- **tiktoken:** Token counting and text processing
-- **numpy:** Numerical operations
-- **common:** Shared models and utilities
-
-### Testing
-
-```bash
-# Test embeddings (requires OpenAI API key)
-uv run python -c "
-from src.rag_service.utils.embeddings import generate_embedding
-import asyncio
-result = asyncio.run(generate_embedding('test text'))
-print(f'Embedding length: {len(result)}')
-"
-
-# Test text processing
-uv run python -c "
-from src.rag_service.utils.text_processing import chunk_text
-chunks = chunk_text('This is a test document with some content.')
-print(f'Generated {len(chunks)} chunks')
-"
 ```
 
 ## Performance Considerations

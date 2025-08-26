@@ -20,6 +20,18 @@ dependencies = [
     "numpy>=1.24.0",
     "python-multipart>=0.0.6",
     "common",
+    # Galileo 2.0 Observability
+    "galileo-sdk>=2.0.0",
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-instrumentation-fastapi>=0.42b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.42b0",
+    "opentelemetry-instrumentation-openai>=0.42b0",
+    "opentelemetry-exporter-otlp>=1.20.0",
+    "opentelemetry-exporter-prometheus>=1.20.0",
+    "prometheus-client>=0.17.0",
+    "structlog>=23.0.0",
+    "rich>=13.0.0",
 ]
 
 [tool.hatch.build.targets.wheel]
